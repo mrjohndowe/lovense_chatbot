@@ -6,10 +6,10 @@ function compact(value, maxLength) {
 
 function templateReply(message) {
   const text = String(message || '').trim();
-  if (/^(hi|hey|hello|hiya)\b/i.test(text)) return 'Hey! Thanks for messaging me. How are you?';
-  if (/how are you|how(?:’|'| a)?re you/i.test(text)) return "I'm doing well, thanks! How are you?";
-  if (/\?$/.test(text)) return 'Thanks for asking. Let me think about that and get back to you shortly.';
-  return 'Thanks for your message! I’ll get back to you shortly.';
+  if (/^(hi|hey|hello|hiya)\b/i.test(text)) return "Hey, you. I was wondering when you'd come looking for my attention 😉";
+  if (/how are you|how(?:’|'| a)?re you/i.test(text)) return "Better now that you're here. Tell me what you've been up to 😉";
+  if (/\?$/.test(text)) return 'Maybe. Ask me nicely, and I might give you the answer you want 😉';
+  return 'Mmm, I like the way you’re thinking. Keep talking 😉';
 }
 
 async function requestJson(url, options, fetchImpl) {

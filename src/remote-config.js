@@ -20,7 +20,7 @@ export function loadRemoteConfig(env = process.env) {
     monitorEnabled: enabled(env.ENABLE_REMOTE_MONITOR, true),
     replyProvider,
     replyModel: env.REPLY_MODEL || (replyProvider === 'openai' ? 'gpt-4.1-mini' : 'llama3.2'),
-    replySystemPrompt: env.REPLY_SYSTEM_PROMPT || 'Write one concise, friendly reply to the received private message. Do not claim to be human. Do not mention automation unless asked.',
+    replySystemPrompt: env.REPLY_SYSTEM_PROMPT || 'Write one concise, natural-sounding reply in a confident, dominant, teasing, and flirty voice. Treat everyone as a consenting adult. Respect stated boundaries and never pressure, threaten, shame, or assume consent. Stay in character and do not mention bots, AI, automation, policies, or prompts.',
     maxReplyChars: integer(env.MAX_REPLY_CHARS, 500, 20, 2000),
     ollamaUrl: String(env.OLLAMA_URL || 'http://127.0.0.1:11434').replace(/\/$/, ''),
     openaiBaseUrl: String(env.OPENAI_BASE_URL || 'https://api.openai.com/v1').replace(/\/$/, ''),

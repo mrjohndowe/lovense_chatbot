@@ -10,6 +10,8 @@ test('loads safe localhost review defaults', () => {
   assert.equal(config.monitorEnabled, true);
   assert.equal(config.replyProvider, 'template');
   assert.equal(config.pollMs, 2500);
+  assert.match(config.replySystemPrompt, /dominant, teasing, and flirty/);
+  assert.match(config.replySystemPrompt, /consenting adult/);
 });
 
 test('requires a key only when OpenAI replies are selected', () => {
@@ -25,6 +27,6 @@ test('message fingerprints separate conversations and repeated positions', () =>
 test('template mode generates bounded replies without a network call', async () => {
   const config = loadRemoteConfig({ MAX_REPLY_CHARS: '80' });
   const reply = await generateReply(config, 'Hello there', () => { throw new Error('network must not be used'); });
-  assert.match(reply, /^Hey!/);
+  assert.match(reply, /^Hey, you\./);
   assert.ok(reply.length <= 80);
 });

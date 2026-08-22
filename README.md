@@ -85,7 +85,7 @@ OPENAI_API_KEY=YOUR_PRIVATE_KEY
 
 Message text is sent to the configured provider. Keep the key only in `.env`; `.env` is ignored by Git.
 
-Customize the response behavior with `REPLY_SYSTEM_PROMPT` and cap replies with `MAX_REPLY_CHARS`.
+The default persona is concise, natural, dominant, teasing, and flirty. It is restricted to consenting-adult conversation, respects stated boundaries, and avoids pressure, threats, shaming, or assumed consent. Customize the behavior with `REPLY_SYSTEM_PROMPT` and cap replies with `MAX_REPLY_CHARS`.
 
 ## Safety and privacy
 

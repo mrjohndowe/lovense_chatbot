@@ -8,6 +8,13 @@ function unknownFact(tease) {
   return `${tease} You’ll have to earn that answer 😉`;
 }
 
+function formatAmericanDate(value) {
+  const [month, day, year] = value.split('/').map(Number);
+  const monthName = new Intl.DateTimeFormat('en-US', { month: 'long', timeZone: 'UTC' })
+    .format(new Date(Date.UTC(year, month - 1, day)));
+  return `${monthName} ${day}, ${year}`;
+}
+
 function templateReply(config, message) {
   const text = String(message || '').trim();
   const fullName = [config.chatFirstName, config.chatLastName].filter(Boolean).join(' ');
@@ -15,7 +22,7 @@ function templateReply(config, message) {
   if (/\b(what(?:’|'| i)s your name|who are you|what should i call you)\b/i.test(text)) return name ? `You can call me ${name}. Say it nicely for me 😉` : unknownFact('Curious about me already?');
   if (/\b(what(?:’|'| i)s your first name)\b/i.test(text)) return config.chatFirstName ? `My first name is ${config.chatFirstName}. Remember it 😉` : unknownFact('You want my first name?');
   if (/\b(what(?:’|'| i)s your last name|what(?:’|'| i)s your surname)\b/i.test(text)) return config.chatLastName ? `My last name is ${config.chatLastName}. Don’t wear it out 😉` : unknownFact('Going for my full identity already?');
-  if (/\b(when is your birthday|what(?:’|'| i)s your birthday|what(?:’|'| i)s your date of birth|when were you born)\b/i.test(text)) return config.chatDateOfBirth ? `My birthday is ${config.chatDateOfBirth}. You can remember that for me 😉` : unknownFact('Planning ahead for my birthday?');
+  if (/\b(when is your birthday|what(?:’|'| i)s your birthday|what(?:’|'| i)s your date of birth|when were you born)\b/i.test(text)) return config.chatDateOfBirth ? `My birthday is ${formatAmericanDate(config.chatDateOfBirth)}. You can remember that for me 😉` : unknownFact('Planning ahead for my birthday?');
   if (/\b(where were you born|what(?:’|'| i)s your place of birth)\b/i.test(text)) return config.chatPlaceOfBirth ? `I was born in ${config.chatPlaceOfBirth}. Now you know a little more about me 😉` : unknownFact('Digging into my origin story?');
   if (/\b(do you have (?:any )?(?:children|kids)|how many (?:children|kids) do you have|are you a (?:mom|mother|dad|father|parent))\b/i.test(text)) return config.chatChildren ? `${config.chatChildren}. That’s all you need to know about that for now 😉` : unknownFact('That’s a personal one.');
   if (/\b(how old are you|what(?:’|'| i)s your age)\b/i.test(text)) return config.chatAge ? `I’m ${config.chatAge}. Old enough to know exactly what I want 😉` : unknownFact('That’s a bold question.');
@@ -57,3 +64,4 @@ export async function generateReply(config, message, fetchImpl = globalThis.fetc
   }, fetchImpl);
   return compact(body.choices?.[0]?.message?.content, config.maxReplyChars);
 }
+

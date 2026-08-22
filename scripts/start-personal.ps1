@@ -1,6 +1,10 @@
 $ErrorActionPreference = 'Stop'
 $lovenseExe = 'C:\Users\davil\AppData\Local\Lovense\Remote\Lovense_Remote.exe'
 $debugUrl = 'http://127.0.0.1:9223/json/version'
+if (-not (Test-Path -LiteralPath 'config.ini') -and -not (Test-Path -LiteralPath '.env')) {
+    Copy-Item -LiteralPath 'config.example.ini' -Destination 'config.ini'
+    Write-Host 'Created config.ini. You can edit its identity and reply settings before enabling automatic sending.' -ForegroundColor Yellow
+}
 
 if (-not (Test-Path -LiteralPath $lovenseExe)) {
     throw "Lovense Remote was not found at $lovenseExe"
@@ -21,4 +25,5 @@ try {
 
 Write-Host 'Lovense Remote is ready. Starting the local review dashboard...' -ForegroundColor Green
 npm start
+
 

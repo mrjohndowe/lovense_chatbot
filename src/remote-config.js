@@ -1,3 +1,5 @@
+import { loadPersonalConfig } from './ini-config.js';
+
 const providers = new Set(['template', 'ollama', 'openai']);
 
 function enabled(value, fallback = false) {
@@ -9,7 +11,7 @@ function integer(value, fallback, min, max) {
   return Number.isInteger(parsed) ? Math.min(max, Math.max(min, parsed)) : fallback;
 }
 
-export function loadRemoteConfig(env = process.env) {
+export function loadRemoteConfig(env = loadPersonalConfig()) {
   const replyProvider = String(env.REPLY_PROVIDER || 'template').toLowerCase();
   if (!providers.has(replyProvider)) throw new Error('REPLY_PROVIDER must be template, ollama, or openai.');
   const config = {
@@ -47,11 +49,19 @@ export function loadRemoteConfig(env = process.env) {
   if (config.chatAge && (!/^\d{1,3}$/.test(config.chatAge) || Number(config.chatAge) < 18 || Number(config.chatAge) > 120)) {
     throw new Error('CHAT_AGE must be an adult age from 18 to 120 when provided.');
   }
-  if (config.chatDateOfBirth && !/^\d{4}-\d{2}-\d{2}$/.test(config.chatDateOfBirth)) {
-    throw new Error('CHAT_DATE_OF_BIRTH must use YYYY-MM-DD when provided.');
+  if (config.chatDateOfBirth) {
+    const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(config.chatDateOfBirth);
+    const month = Number(match?.[1]);
+    const day = Number(match?.[2]);
+    const year = Number(match?.[3]);
+    const date = match ? new Date(Date.UTC(year, month - 1, day)) : null;
+    const valid = date && date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
+    if (!valid) throw new Error('CHAT_DATE_OF_BIRTH must be a valid date in MM/DD/YYYY format when provided.');
   }
   if (replyProvider === 'openai' && !config.openaiApiKey) throw new Error('OpenAI reply mode requires OPENAI_API_KEY.');
   return config;
 }
+
+
 
 

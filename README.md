@@ -27,16 +27,18 @@ From PowerShell:
 
 ```powershell
 Set-Location 'G:\.gitClones\chatbot'
-if (-not (Test-Path .env)) { Copy-Item .env.example .env }
+if (-not (Test-Path config.ini)) { Copy-Item config.example.ini config.ini }
 .\scripts\start-personal.ps1
 
 ```
 
-The launcher restarts Lovense Remote only when its localhost inspection endpoint is unavailable, then starts the review dashboard. Open:
+The launcher creates `config.ini` from the fully commented, grouped example when neither `config.ini` nor a legacy `.env` exists. It then restarts Lovense Remote only when its localhost inspection endpoint is unavailable, then starts the review dashboard. Open:
 
 `http://127.0.0.1:3000`
 
 Keep the PowerShell window open. Press `Ctrl+C` to stop the dashboard. Lovense Remote remains open.
+
+`config.ini` is the primary personal configuration file. Existing `.env` files remain supported only as a fallback when `config.ini` does not exist. Regular operating-system environment variables override file values.
 
 ## Daily workflow
 
@@ -63,9 +65,9 @@ Automatic sending is off by default. Enable it from the localhost dashboard afte
 5. Rechecks that the same conversation is still selected.
 6. Fills the Lovense editor and clicks Send.
 
-Configure the timing in the private `.env`:
+Configure the timing in the private `config.ini`:
 
-```dotenv
+```ini
 ENABLE_AUTO_SEND=false
 AUTO_SEND_MIN_DELAY_SECONDS=8
 AUTO_SEND_MAX_DELAY_SECONDS=25
@@ -75,11 +77,11 @@ AUTO_SEND_TYPING_MS_PER_CHAR=45
 The defaults produce an 8–25 second random reaction plus approximately 45 milliseconds per reply character, capped at 15 seconds of typing time. Changing conversations, pausing the monitor, disabling automatic sending, or losing the expected Lovense controls prevents the scheduled response from being sent.
 ## Reply engines
 
-The private `.env` controls reply generation.
+The private `config.ini` controls reply generation.
 
 ### Built-in templates (default)
 
-```dotenv
+```ini
 REPLY_PROVIDER=template
 ```
 
@@ -87,7 +89,7 @@ This works immediately and makes no AI network request. Replies are simple and i
 
 ### Local Ollama
 
-```dotenv
+```ini
 REPLY_PROVIDER=ollama
 REPLY_MODEL=llama3.2
 OLLAMA_URL=http://127.0.0.1:11434
@@ -97,21 +99,23 @@ Ollama and the selected model must already be installed and running. Message tex
 
 ### OpenAI-compatible service
 
-```dotenv
+```ini
 REPLY_PROVIDER=openai
 REPLY_MODEL=gpt-4.1-mini
 OPENAI_BASE_URL=https://api.openai.com/v1
 OPENAI_API_KEY=YOUR_PRIVATE_KEY
 ```
 
-Message text is sent to the configured provider. Keep the key only in `.env`; `.env` is ignored by Git.
+Message text is sent to the configured provider. Keep the key only in `config.ini`; `config.ini` is ignored by Git.
+
+Birth dates use American `MM/DD/YYYY` format in `config.ini` and are written as a full month, day, and year in replies—for example, `04/12/1990` becomes `April 12, 1990`.
 
 The default persona is concise, natural, dominant, teasing, and flirty. It is restricted to consenting-adult conversation, respects stated boundaries, and avoids pressure, threats, shaming, or assumed consent. Customize the behavior with `REPLY_SYSTEM_PROMPT` and cap replies with `MAX_REPLY_CHARS`.
 
 ## Safety and privacy
 
 - The dashboard and Lovense inspection endpoint bind only to `127.0.0.1`.
-- Automatic sending is disabled by default. Enable it from the localhost dashboard or set `ENABLE_AUTO_SEND=true` in the private `.env`.
+- Automatic sending is disabled by default. Enable it from the localhost dashboard or set `ENABLE_AUTO_SEND=true` in the private `config.ini`.
 - Message text exists in process memory and the browser review page but is not written to disk by this project.
 - The review queue resets when the Node process stops.
 - Any local process running as your Windows user may be able to connect to a local debugging port. Stop the assistant when it is not needed, and restart Lovense Remote normally if you want the debugging endpoint removed.
@@ -125,3 +129,5 @@ npm test
 ```
 
 Automated tests cover safe defaults, reply-provider validation, deduplication keys, existing command-policy tests, and template reply isolation. Tests do not send a real Lovense message. Live sending must be confirmed manually from the review dashboard.
+
+

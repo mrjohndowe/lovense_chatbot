@@ -40,3 +40,22 @@ test('template mode generates bounded replies without a network call', async () 
   assert.match(reply, /^Hey, you\./);
   assert.ok(reply.length <= 80);
 });
+test('local template mode answers configured identity questions', async () => {
+  const config = loadRemoteConfig({
+    CHAT_FIRST_NAME: 'Taylor',
+    CHAT_LAST_NAME: 'Morgan',
+    CHAT_DATE_OF_BIRTH: '1990-04-12',
+    CHAT_PLACE_OF_BIRTH: 'Denver, Colorado',
+    CHAT_CHILDREN: 'I do not have children'
+  });
+  assert.match(await generateReply(config, 'What is your first name?'), /Taylor/);
+  assert.match(await generateReply(config, 'What is your last name?'), /Morgan/);
+  assert.match(await generateReply(config, 'When is your birthday?'), /1990-04-12/);
+  assert.match(await generateReply(config, 'Where were you born?'), /Denver, Colorado/);
+  assert.match(await generateReply(config, 'Do you have any children?'), /I do not have children/);
+});
+
+test('rejects an invalid birth date format', () => {
+  assert.throws(() => loadRemoteConfig({ CHAT_DATE_OF_BIRTH: 'April 12' }), /YYYY-MM-DD/);
+});
+

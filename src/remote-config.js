@@ -28,9 +28,30 @@ export function loadRemoteConfig(env = process.env) {
     maxReplyChars: integer(env.MAX_REPLY_CHARS, 500, 20, 2000),
     ollamaUrl: String(env.OLLAMA_URL || 'http://127.0.0.1:11434').replace(/\/$/, ''),
     openaiBaseUrl: String(env.OPENAI_BASE_URL || 'https://api.openai.com/v1').replace(/\/$/, ''),
-    openaiApiKey: env.OPENAI_API_KEY || ''
+    openaiApiKey: env.OPENAI_API_KEY || '',
+    chatUsername: String(env.CHAT_USERNAME || '').trim(),
+    chatDisplayName: String(env.CHAT_DISPLAY_NAME || '').trim(),
+    chatFirstName: String(env.CHAT_FIRST_NAME || '').trim(),
+    chatLastName: String(env.CHAT_LAST_NAME || '').trim(),
+    chatDateOfBirth: String(env.CHAT_DATE_OF_BIRTH || '').trim(),
+    chatPlaceOfBirth: String(env.CHAT_PLACE_OF_BIRTH || '').trim(),
+    chatChildren: String(env.CHAT_CHILDREN || '').trim(),
+    chatAge: String(env.CHAT_AGE || '').trim(),
+    chatPronouns: String(env.CHAT_PRONOUNS || '').trim(),
+    chatLocation: String(env.CHAT_LOCATION || '').trim(),
+    chatOccupation: String(env.CHAT_OCCUPATION || '').trim(),
+    chatRelationshipStatus: String(env.CHAT_RELATIONSHIP_STATUS || '').trim(),
+    chatInterests: String(env.CHAT_INTERESTS || '').trim()
   };
   config.autoSendMaxDelayMs = Math.max(config.autoSendMinDelayMs, config.autoSendMaxDelayMs);
+  if (config.chatAge && (!/^\d{1,3}$/.test(config.chatAge) || Number(config.chatAge) < 18 || Number(config.chatAge) > 120)) {
+    throw new Error('CHAT_AGE must be an adult age from 18 to 120 when provided.');
+  }
+  if (config.chatDateOfBirth && !/^\d{4}-\d{2}-\d{2}$/.test(config.chatDateOfBirth)) {
+    throw new Error('CHAT_DATE_OF_BIRTH must use YYYY-MM-DD when provided.');
+  }
   if (replyProvider === 'openai' && !config.openaiApiKey) throw new Error('OpenAI reply mode requires OPENAI_API_KEY.');
   return config;
 }
+
+

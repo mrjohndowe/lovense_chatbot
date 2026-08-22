@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Lovense Chatbot</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <main class="app">
+    <header>
+      <div><span class="eyebrow">PRIVATE CONTROL CONSOLE</span><h1>Lovense Chatbot</h1></div>
+      <div id="status" class="status"><span></span> Connecting</div>
+    </header>
+    <section id="messages" class="messages" aria-live="polite">
+      <article class="message bot"><div class="avatar">L</div><div><strong>Lovense Bot</strong><p>Ready. I only respond to explicit slash commands. Use <code>/help</code> to begin.</p></div></article>
+    </section>
+    <form id="chat-form" autocomplete="off">
+      <label for="access-token">Access token <small>(only if configured)</small></label>
+      <input id="access-token" type="password" placeholder="Optional local access token">
+      <div class="composer">
+        <input id="message" maxlength="200" placeholder="Type /help or /vibe 10 5" aria-label="Command" required autofocus>
+        <button type="submit">Send</button>
+      </div>
+      <p class="hint">Emergency stop: <button class="link" id="stop" type="button">send /stop</button></p>
+    </form>
+  </main>
+  <script src="/app.js" type="module"></script>
+</body>
+</html>

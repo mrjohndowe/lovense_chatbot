@@ -18,10 +18,15 @@
       <div class="button-row"><button id="start" type="button">Start watching</button><button id="stop" class="secondary" type="button">Pause</button></div>
     </section>
 
+    <section class="controls auto-card card">
+      <div><p class="label">Automatic replies</p><p id="auto-detail">Disabled — every reply requires review.</p></div>
+      <button id="auto-send" class="secondary" type="button">Enable automatic sending</button>
+    </section>
+
     <section class="summary-grid">
       <article class="card"><p class="label">Open conversation</p><strong id="conversation">None</strong></article>
       <article class="card"><p class="label">Reply engine</p><strong id="provider">—</strong></article>
-      <article class="card"><p class="label">Safety mode</p><strong>Review required</strong></article>
+      <article class="card"><p class="label">Send mode</p><strong id="send-mode">Review required</strong></article>
     </section>
 
     <section class="queue-section">
@@ -31,8 +36,8 @@
     </section>
 
     <section class="notice">
-      <strong>Nothing is sent automatically.</strong>
-      <p>“Place draft” fills the Lovense editor but does not send. “Send now” posts the reviewed text to the named conversation after a final confirmation.</p>
+      <strong id="send-notice-title">Automatic sending is off.</strong>
+      <p>When automatic sending is enabled, new replies use a randomized reaction and typing delay, then recheck the selected conversation before sending. Pause or disable automatic sending at any time.</p>
     </section>
   </main>
   <script src="/remote.js"></script>

@@ -11,7 +11,7 @@ This project does not use the Lovense developer API, pairing callbacks, Cloudfla
 - Ignores images, patterns, toy requests, notices, and other non-text entries.
 - Marks all visible history as already seen when monitoring starts or you switch conversations.
 - Queues only genuinely new incoming text for review.
-- Never sends automatically in the current release.
+- Supports explicit opt-in automatic sending with a randomized reaction and reply-length typing delay.
 - Lets you edit a proposed reply, place it in Lovense as an unsent draft, dismiss it, or explicitly send it.
 - Rechecks the conversation title immediately before drafting and sending.
 
@@ -52,6 +52,27 @@ Keep the PowerShell window open. Press `Ctrl+C` to stop the dashboard. Lovense R
 
 The initial version intentionally does not jump among contacts. That prevents a reply intended for one person from being entered into another conversation.
 
+## Automatic sending and human-style delay
+
+Automatic sending is off by default. Enable it from the localhost dashboard after opening the intended Lovense conversation. When armed, the assistant:
+
+1. Detects a new incoming text message.
+2. Generates a reply.
+3. Waits a randomized reaction delay.
+4. Adds simulated typing time based on reply length.
+5. Rechecks that the same conversation is still selected.
+6. Fills the Lovense editor and clicks Send.
+
+Configure the timing in the private `.env`:
+
+```dotenv
+ENABLE_AUTO_SEND=false
+AUTO_SEND_MIN_DELAY_SECONDS=8
+AUTO_SEND_MAX_DELAY_SECONDS=25
+AUTO_SEND_TYPING_MS_PER_CHAR=45
+```
+
+The defaults produce an 8–25 second random reaction plus approximately 45 milliseconds per reply character, capped at 15 seconds of typing time. Changing conversations, pausing the monitor, disabling automatic sending, or losing the expected Lovense controls prevents the scheduled response from being sent.
 ## Reply engines
 
 The private `.env` controls reply generation.
@@ -90,7 +111,7 @@ The default persona is concise, natural, dominant, teasing, and flirty. It is re
 ## Safety and privacy
 
 - The dashboard and Lovense inspection endpoint bind only to `127.0.0.1`.
-- The current release requires review; there is no automatic-send environment option.
+- Automatic sending is disabled by default. Enable it from the localhost dashboard or set `ENABLE_AUTO_SEND=true` in the private `.env`.
 - Message text exists in process memory and the browser review page but is not written to disk by this project.
 - The review queue resets when the Node process stops.
 - Any local process running as your Windows user may be able to connect to a local debugging port. Stop the assistant when it is not needed, and restart Lovense Remote normally if you want the debugging endpoint removed.

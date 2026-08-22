@@ -8,12 +8,22 @@ test('loads safe localhost review defaults', () => {
   const config = loadRemoteConfig({});
   assert.equal(config.debugUrl, 'http://127.0.0.1:9223');
   assert.equal(config.monitorEnabled, true);
+  assert.equal(config.autoSend, false);
+  assert.equal(config.autoSendMinDelayMs, 8000);
+  assert.equal(config.autoSendMaxDelayMs, 25000);
+  assert.equal(config.autoSendTypingMsPerChar, 45);
   assert.equal(config.replyProvider, 'template');
   assert.equal(config.pollMs, 2500);
   assert.match(config.replySystemPrompt, /dominant, teasing, and flirty/);
   assert.match(config.replySystemPrompt, /consenting adult/);
 });
 
+test('automatic sending requires an explicit opt-in and bounded delay', () => {
+  const config = loadRemoteConfig({ ENABLE_AUTO_SEND: 'true', AUTO_SEND_MIN_DELAY_SECONDS: '1', AUTO_SEND_MAX_DELAY_SECONDS: '3' });
+  assert.equal(config.autoSend, true);
+  assert.equal(config.autoSendMinDelayMs, 2000);
+  assert.equal(config.autoSendMaxDelayMs, 3000);
+});
 test('requires a key only when OpenAI replies are selected', () => {
   assert.throws(() => loadRemoteConfig({ REPLY_PROVIDER: 'openai' }), /OPENAI_API_KEY/);
   assert.equal(loadRemoteConfig({ REPLY_PROVIDER: 'openai', OPENAI_API_KEY: 'test-key' }).replyModel, 'gpt-4.1-mini');

@@ -35,7 +35,7 @@ function reviewCard(item) {
   title.textContent = item.conversation;
   const badge = document.createElement('span');
   badge.className = 'badge';
-  badge.textContent = item.status === 'drafted' ? 'Draft placed' : 'Waiting';
+  badge.textContent = item.status === 'drafted' ? 'Draft placed' : item.scheduledFor ? `Auto ${new Date(item.scheduledFor).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' })}` : 'Waiting';
   top.append(title, badge);
   const message = document.createElement('div');
   message.className = 'message';
@@ -68,6 +68,14 @@ function render(data) {
   document.querySelector('#conversation').textContent = data.activeConversation || 'No open conversation';
   document.querySelector('#provider').textContent = `${data.replyProvider} · ${data.replyModel}`;
   document.querySelector('#monitor-detail').textContent = data.watching ? `Watching every ${Math.round(data.pollMs / 100) / 10} seconds` : 'Paused';
+  const autoButton = document.querySelector('#auto-send');
+  autoButton.textContent = data.autoSend ? 'Disable automatic sending' : 'Enable automatic sending';
+  autoButton.className = data.autoSend ? 'danger' : 'secondary';
+  document.querySelector('#auto-detail').textContent = data.autoSend
+    ? `Armed — random ${Math.round(data.autoSendMinDelayMs / 1000)}–${Math.round(data.autoSendMaxDelayMs / 1000)} second reaction plus typing delay.`
+    : 'Disabled — every reply requires review.';
+  document.querySelector('#send-mode').textContent = data.autoSend ? 'Automatic · armed' : 'Review required';
+  document.querySelector('#send-notice-title').textContent = data.autoSend ? 'Automatic sending is armed.' : 'Automatic sending is off.';
   document.querySelector('#start').disabled = data.watching;
   document.querySelector('#stop').disabled = !data.watching;
   showError(data.lastError || '');
@@ -106,5 +114,12 @@ queue.addEventListener('click', async event => {
 document.querySelector('#start').addEventListener('click', () => monitor('start'));
 document.querySelector('#stop').addEventListener('click', () => monitor('stop'));
 document.querySelector('#refresh').addEventListener('click', refresh);
+document.querySelector('#auto-send').addEventListener('click', async () => {
+  const enabling = !state.data?.autoSend;
+  if (enabling && !window.confirm('Enable automatic sending? New detected messages will be replied to without individual review after a human-style delay.')) return;
+  try {
+    render(await request('/api/auto-send', { method: 'POST', body: JSON.stringify({ enabled: enabling }) }));
+  } catch (error) { showError(error.message); }
+});
 refresh();
 setInterval(refresh, 2500);

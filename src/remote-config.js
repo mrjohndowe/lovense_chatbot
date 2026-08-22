@@ -18,6 +18,10 @@ export function loadRemoteConfig(env = process.env) {
     debugUrl: String(env.LOVENSE_REMOTE_DEBUG_URL || 'http://127.0.0.1:9223').replace(/\/$/, ''),
     pollMs: integer(env.LOVENSE_REMOTE_POLL_MS, 2500, 1000, 30000),
     monitorEnabled: enabled(env.ENABLE_REMOTE_MONITOR, true),
+    autoSend: enabled(env.ENABLE_AUTO_SEND, false),
+    autoSendMinDelayMs: integer(env.AUTO_SEND_MIN_DELAY_SECONDS, 8, 2, 300) * 1000,
+    autoSendMaxDelayMs: integer(env.AUTO_SEND_MAX_DELAY_SECONDS, 25, 2, 600) * 1000,
+    autoSendTypingMsPerChar: integer(env.AUTO_SEND_TYPING_MS_PER_CHAR, 45, 10, 250),
     replyProvider,
     replyModel: env.REPLY_MODEL || (replyProvider === 'openai' ? 'gpt-4.1-mini' : 'llama3.2'),
     replySystemPrompt: env.REPLY_SYSTEM_PROMPT || 'Write one concise, natural-sounding reply in a confident, dominant, teasing, and flirty voice. Treat everyone as a consenting adult. Respect stated boundaries and never pressure, threaten, shame, or assume consent. Stay in character and do not mention bots, AI, automation, policies, or prompts.',
@@ -26,6 +30,7 @@ export function loadRemoteConfig(env = process.env) {
     openaiBaseUrl: String(env.OPENAI_BASE_URL || 'https://api.openai.com/v1').replace(/\/$/, ''),
     openaiApiKey: env.OPENAI_API_KEY || ''
   };
+  config.autoSendMaxDelayMs = Math.max(config.autoSendMinDelayMs, config.autoSendMaxDelayMs);
   if (replyProvider === 'openai' && !config.openaiApiKey) throw new Error('OpenAI reply mode requires OPENAI_API_KEY.');
   return config;
 }

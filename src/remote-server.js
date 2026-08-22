@@ -19,6 +19,8 @@ let activeConversation = '';
 let lastScanAt = null;
 let lastError = '';
 let nextReviewId = 1;
+let autoSend = config.autoSend;
+const autoTimers = new Map();
 
 function json(response, status, data) {
   response.writeHead(status, {
@@ -62,11 +64,51 @@ function publicState() {
     pollMs: config.pollMs,
     replyProvider: config.replyProvider,
     replyModel: config.replyModel,
-    reviewMode: true,
+    reviewMode: !autoSend,
+    autoSend,
+    autoSendMinDelayMs: config.autoSendMinDelayMs,
+    autoSendMaxDelayMs: config.autoSendMaxDelayMs,
+    autoSendTypingMsPerChar: config.autoSendTypingMsPerChar,
     reviews: reviews.map(item => ({ ...item }))
   };
 }
 
+function humanDelayMs(reply, random = Math.random) {
+  const reactionRange = config.autoSendMaxDelayMs - config.autoSendMinDelayMs;
+  const reactionDelay = config.autoSendMinDelayMs + Math.floor(random() * (reactionRange + 1));
+  const typingDelay = Math.min(String(reply || '').length * config.autoSendTypingMsPerChar, 15_000);
+  return reactionDelay + typingDelay;
+}
+function clearAutoTimer(id) {
+  const timeout = autoTimers.get(id);
+  if (timeout) clearTimeout(timeout);
+  autoTimers.delete(id);
+  const item = reviews.find(review => review.id === String(id));
+  if (item) item.scheduledFor = null;
+}
+
+function scheduleAuto(item) {
+  if (!autoSend || item.status !== 'waiting' || autoTimers.has(item.id)) return;
+  const delayMs = humanDelayMs(item.reply);
+  item.scheduledFor = new Date(Date.now() + delayMs).toISOString();
+  const timeout = setTimeout(async () => {
+    autoTimers.delete(item.id);
+    item.scheduledFor = null;
+    if (!autoSend || !watching || item.status !== 'waiting') return;
+    try {
+      await bridge.fillDraft(item.reply, item.conversation);
+      await bridge.send(item.conversation);
+      item.status = 'sent';
+      item.sentAt = new Date().toISOString();
+    } catch (error) {
+      item.status = 'error';
+      item.error = error.message;
+      lastError = `Automatic reply was not sent: ${error.message}`;
+    }
+  }, delayMs);
+  timeout.unref();
+  autoTimers.set(item.id, timeout);
+}
 async function scan({ baseline = false } = {}) {
   if (scanning) return;
   scanning = true;
@@ -85,14 +127,16 @@ async function scan({ baseline = false } = {}) {
       if (fresh.length) {
         const combinedMessage = fresh.map(item => item.text).join('\n');
         const reply = await generateReply(config, combinedMessage);
-        reviews.push({
+        const review = {
           id: String(nextReviewId++),
           conversation: snapshot.conversation,
           message: combinedMessage,
           reply,
           status: 'waiting',
           createdAt: new Date().toISOString()
-        });
+        };
+        reviews.push(review);
+        scheduleAuto(review);
         while (reviews.length > 20) reviews.shift();
       }
     }
@@ -125,6 +169,16 @@ async function api(request, response, pathname) {
   if (request.method !== 'GET' && !sameOrigin(request)) return json(response, 403, { error: 'Request origin was rejected.' });
   try {
     if (request.method === 'GET' && pathname === '/api/status') return json(response, 200, publicState());
+    if (request.method === 'POST' && pathname === '/api/auto-send') {
+      const body = await readJson(request);
+      autoSend = body.enabled === true;
+      if (!autoSend) {
+        for (const timeout of autoTimers.values()) clearTimeout(timeout);
+        autoTimers.clear();
+        for (const item of reviews) item.scheduledFor = null;
+      }
+      return json(response, 200, publicState());
+    }
     if (request.method === 'POST' && pathname === '/api/monitor/start') {
       await startWatching();
       return json(response, 200, publicState());
@@ -138,6 +192,7 @@ async function api(request, response, pathname) {
       const item = reviews.find(review => review.id === String(body.id));
       if (!item) return json(response, 404, { error: 'Review item was not found.' });
       item.reply = String(body.reply || '').trim().slice(0, config.maxReplyChars);
+      clearAutoTimer(item.id);
       await bridge.fillDraft(item.reply, item.conversation);
       item.status = 'drafted';
       return json(response, 200, { item });
@@ -147,6 +202,7 @@ async function api(request, response, pathname) {
       const item = reviews.find(review => review.id === String(body.id));
       if (!item) return json(response, 404, { error: 'Review item was not found.' });
       item.reply = String(body.reply || '').trim().slice(0, config.maxReplyChars);
+      clearAutoTimer(item.id);
       await bridge.fillDraft(item.reply, item.conversation);
       await bridge.send(item.conversation);
       item.status = 'sent';
@@ -157,6 +213,7 @@ async function api(request, response, pathname) {
       const body = await readJson(request);
       const item = reviews.find(review => review.id === String(body.id));
       if (!item) return json(response, 404, { error: 'Review item was not found.' });
+      clearAutoTimer(item.id);
       item.status = 'dismissed';
       return json(response, 200, { item });
     }

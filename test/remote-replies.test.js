@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { loadRemoteConfig } from '../src/remote-config.js';
 import { fingerprint } from '../src/remote-chat.js';
-import { generateReply } from '../src/replies.js';
+import { createReplyDeduper, generateReply } from '../src/replies.js';
 
 test('loads safe localhost review defaults', () => {
   const config = loadRemoteConfig({});
@@ -14,7 +14,10 @@ test('loads safe localhost review defaults', () => {
   assert.equal(config.autoSendTypingMsPerChar, 45);
   assert.equal(config.replyProvider, 'template');
   assert.equal(config.pollMs, 2500);
-  assert.match(config.replySystemPrompt, /dominant, teasing, and flirty/);
+  assert.match(config.replySystemPrompt, /genuine conversation/);
+  assert.match(config.replySystemPrompt, /only when the conversation invites it/);
+  assert.equal(config.conversationMemoryMessages, 24);
+  assert.equal(config.sendMemoryToOpenAI, false);
   assert.match(config.replySystemPrompt, /consenting adult/);
 });
 
@@ -37,7 +40,7 @@ test('message fingerprints separate conversations and repeated positions', () =>
 test('template mode generates bounded replies without a network call', async () => {
   const config = loadRemoteConfig({ MAX_REPLY_CHARS: '80' });
   const reply = await generateReply(config, 'Hello there', () => { throw new Error('network must not be used'); });
-  assert.match(reply, /^Hey, you\./);
+  assert.match(reply, /^Hey!/);
   assert.ok(reply.length <= 80);
 });
 test('local template mode answers configured identity questions', async () => {
@@ -63,4 +66,34 @@ test('rejects an impossible birth date', () => {
   assert.throws(() => loadRemoteConfig({ CHAT_DATE_OF_BIRTH: '02/30/1990' }), /valid date/);
 });
 
+test('prevents duplicate replies within each conversation', () => {
+  const dedupe = createReplyDeduper();
+  const reply = 'My birthday is April 12, 1990. You can remember that for me 😉';
+  assert.equal(dedupe('Taylor', reply), reply);
+  assert.match(dedupe('Taylor', reply), /^I already told you—my birthday is April 12, 1990/);
+  assert.match(dedupe('Taylor', reply), /^Pay attention—my birthday is April 12, 1990/);
+  assert.equal(dedupe('Sophie', reply), reply);
+});
+
+test('uses conversation history to vary natural follow-up questions', async () => {
+  const config = loadRemoteConfig({});
+  const first = await generateReply(config, 'That happened yesterday', globalThis.fetch, { history: [] });
+  const later = await generateReply(config, 'That happened yesterday', globalThis.fetch, { history: [{ role: 'user', content: 'Earlier message' }] });
+  assert.match(first, /Tell me more/);
+  assert.match(later, /How do you feel/);
+  assert.notEqual(first, later);
+});
+
+test('does not send prior memory to OpenAI unless explicitly enabled', async () => {
+  let requestBody;
+  const fetchImpl = async (_url, options) => {
+    requestBody = JSON.parse(options.body);
+    return { ok: true, json: async () => ({ choices: [{ message: { content: 'A fresh answer' } }] }) };
+  };
+  const history = [{ role: 'user', content: 'private earlier message' }];
+  await generateReply(loadRemoteConfig({ REPLY_PROVIDER: 'openai', OPENAI_API_KEY: 'test' }), 'new message', fetchImpl, { history });
+  assert.equal(requestBody.messages.some(item => item.content === 'private earlier message'), false);
+  await generateReply(loadRemoteConfig({ REPLY_PROVIDER: 'openai', OPENAI_API_KEY: 'test', SEND_MEMORY_TO_OPENAI: 'true' }), 'new message', fetchImpl, { history });
+  assert.equal(requestBody.messages.some(item => item.content === 'private earlier message'), true);
+});
 

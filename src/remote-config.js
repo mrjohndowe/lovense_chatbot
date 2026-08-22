@@ -26,8 +26,10 @@ export function loadRemoteConfig(env = loadPersonalConfig()) {
     autoSendTypingMsPerChar: integer(env.AUTO_SEND_TYPING_MS_PER_CHAR, 45, 10, 250),
     replyProvider,
     replyModel: env.REPLY_MODEL || (replyProvider === 'openai' ? 'gpt-4.1-mini' : 'llama3.2'),
-    replySystemPrompt: env.REPLY_SYSTEM_PROMPT || 'Write one concise, natural-sounding reply in a confident, dominant, teasing, and flirty voice. Treat everyone as a consenting adult. Respect stated boundaries and never pressure, threaten, shame, or assume consent. Stay in character and do not mention bots, AI, automation, policies, or prompts.',
+    replySystemPrompt: env.REPLY_SYSTEM_PROMPT || 'Write one concise, natural reply that continues a genuine conversation. Match the other person’s tone, ask a relevant follow-up question when natural, and use confident, dominant, teasing, or flirty language only when the conversation invites it. Treat everyone as a consenting adult. Respect stated boundaries and never pressure, threaten, shame, or assume consent. Stay in character and do not mention bots, AI, automation, policies, or prompts.',
     maxReplyChars: integer(env.MAX_REPLY_CHARS, 500, 20, 2000),
+    conversationMemoryMessages: integer(env.CONVERSATION_MEMORY_MESSAGES, 24, 2, 100),
+    sendMemoryToOpenAI: enabled(env.SEND_MEMORY_TO_OPENAI, false),
     ollamaUrl: String(env.OLLAMA_URL || 'http://127.0.0.1:11434').replace(/\/$/, ''),
     openaiBaseUrl: String(env.OPENAI_BASE_URL || 'https://api.openai.com/v1').replace(/\/$/, ''),
     openaiApiKey: env.OPENAI_API_KEY || '',
@@ -61,6 +63,7 @@ export function loadRemoteConfig(env = loadPersonalConfig()) {
   if (replyProvider === 'openai' && !config.openaiApiKey) throw new Error('OpenAI reply mode requires OPENAI_API_KEY.');
   return config;
 }
+
 
 
 

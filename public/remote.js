@@ -9,7 +9,7 @@ function headers() {
 async function request(path, options = {}) {
   const response = await fetch(path, { ...options, headers: { ...headers(), ...(options.headers || {}) } });
   if (response.status === 401) {
-    const token = window.prompt('Enter CHATBOT_ACCESS_TOKEN from your private .env:');
+    const token = window.prompt('Enter CHATBOT_ACCESS_TOKEN from your private config.ini:');
     if (token === null) throw new Error('Access token is required.');
     state.token = token.trim();
     sessionStorage.setItem('remote-reply-token', state.token);
@@ -83,6 +83,64 @@ function render(data) {
   queue.replaceChildren(...(active.length ? active.map(reviewCard) : [Object.assign(document.createElement('div'), { className: 'empty', textContent: 'No new incoming messages are waiting.' })]));
 }
 
+function renderToy(toy) {
+  state.toy = toy;
+  const name = document.querySelector('#toy-name');
+  const detail = document.querySelector('#toy-detail');
+  const enable = document.querySelector('#toy-enable');
+  const stop = document.querySelector('#toy-stop');
+  const functions = document.querySelector('#toy-functions');
+  name.textContent = toy.available ? toy.name : 'No accepted toy session';
+  detail.textContent = toy.available
+    ? `${toy.deviceType || 'Toy'}${toy.battery === null ? '' : ` · Battery ${toy.battery}%`} · ${toy.functions.length} function${toy.functions.length === 1 ? '' : 's'}`
+    : (toy.error || 'Open Live Control and wait for the other user to accept.');
+  enable.disabled = !toy.available;
+  enable.textContent = toy.enabled ? 'Disable toy controls' : 'Enable toy controls';
+  enable.className = toy.enabled ? 'danger' : 'secondary';
+  stop.disabled = !toy.available;
+  if (!toy.available || !toy.functions.length) {
+    functions.replaceChildren(Object.assign(document.createElement('div'), { className: 'empty', textContent: 'No first-toy sliders detected.' }));
+    return;
+  }
+  functions.replaceChildren(...toy.functions.map(control => {
+    const row = document.createElement('label');
+    row.className = 'toy-function';
+    const heading = document.createElement('span');
+    heading.className = 'toy-function-heading';
+    const title = document.createElement('strong');
+    title.textContent = control.name;
+    const value = document.createElement('output');
+    value.textContent = String(control.value);
+    heading.append(title, value);
+    const slider = document.createElement('input');
+    slider.type = 'range';
+    slider.min = String(control.min);
+    slider.max = String(control.max);
+    slider.step = String(control.step);
+    slider.value = String(control.value);
+    slider.disabled = !toy.enabled;
+    slider.dataset.functionIndex = String(control.index);
+    slider.addEventListener('input', () => { value.textContent = slider.value; });
+    slider.addEventListener('change', async () => {
+      slider.disabled = true;
+      try {
+        renderToy(await request('/api/toys/control', { method: 'POST', body: JSON.stringify({ functionIndex: Number(slider.dataset.functionIndex), value: Number(slider.value) }) }));
+      } catch (error) {
+        detail.textContent = error.message;
+        await refreshToys();
+      }
+    });
+    const bounds = document.createElement('small');
+    bounds.textContent = `${control.min} to ${control.max} · step ${control.step}`;
+    row.append(heading, slider, bounds);
+    return row;
+  }));
+}
+
+async function refreshToys() {
+  try { renderToy(await request('/api/toys')); }
+  catch (error) { renderToy({ available: false, enabled: false, error: error.message, functions: [] }); }
+}
 async function refresh() {
   try { render(await request('/api/status')); }
   catch (error) { showError(error.message); }
@@ -114,7 +172,18 @@ queue.addEventListener('click', async event => {
 document.querySelector('#start').addEventListener('click', () => monitor('start'));
 document.querySelector('#stop').addEventListener('click', () => monitor('stop'));
 document.querySelector('#refresh').addEventListener('click', refresh);
-document.querySelector('#auto-send').addEventListener('click', async () => {
+document.querySelector('#toy-enable').addEventListener('click', async () => {
+  const enabling = !state.toy?.enabled;
+  if (enabling && !window.confirm(`Enable manual controls for ${state.toy?.name || 'this toy'}?`)) return;
+  try { renderToy(await request('/api/toys/enable', { method: 'POST', body: JSON.stringify({ enabled: enabling }) })); }
+  catch (error) { document.querySelector('#toy-detail').textContent = error.message; }
+});
+document.querySelector('#toy-stop').addEventListener('click', async () => {
+  const button = document.querySelector('#toy-stop');
+  button.disabled = true;
+  try { renderToy(await request('/api/toys/stop', { method: 'POST', body: '{}' })); }
+  catch (error) { document.querySelector('#toy-detail').textContent = error.message; }
+});document.querySelector('#auto-send').addEventListener('click', async () => {
   const enabling = !state.data?.autoSend;
   if (enabling && !window.confirm('Enable automatic sending? New detected messages will be replied to without individual review after a human-style delay.')) return;
   try {
@@ -123,4 +192,5 @@ document.querySelector('#auto-send').addEventListener('click', async () => {
 });
 refresh();
 setInterval(refresh, 2500);
+
 

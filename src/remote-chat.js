@@ -11,8 +11,9 @@ export function fingerprint(conversation, message) {
 }
 
 export class RemoteChatBridge {
-  constructor({ debugUrl = DEFAULT_DEBUG_URL, fetchImpl = globalThis.fetch, WebSocketImpl = globalThis.WebSocket } = {}) {
+  constructor({ debugUrl = DEFAULT_DEBUG_URL, targetUrlIncludes = '', fetchImpl = globalThis.fetch, WebSocketImpl = globalThis.WebSocket } = {}) {
     this.debugUrl = debugUrl.replace(/\/$/, '');
+    this.targetUrlIncludes = targetUrlIncludes;
     this.fetch = fetchImpl;
     this.WebSocketImpl = WebSocketImpl;
     this.socket = null;
@@ -25,7 +26,10 @@ export class RemoteChatBridge {
     const response = await this.fetch(`${this.debugUrl}/json/list`, { signal: AbortSignal.timeout(4_000) });
     if (!response.ok) throw new Error(`Lovense inspection endpoint returned HTTP ${response.status}.`);
     const targets = await response.json();
-    const target = targets.find(item => item.type === 'page' && item.title === 'Lovense Remote');
+    const pages = targets.filter(item => item.type === 'page' && item.title === 'Lovense Remote');
+    const target = this.targetUrlIncludes
+      ? pages.find(item => String(item.url || '').includes(this.targetUrlIncludes))
+      : (pages.find(item => String(item.url || '').includes('/index.html')) || pages[0]);
     if (!target?.webSocketDebuggerUrl) throw new Error('Lovense Remote renderer was not found.');
 
     await new Promise((resolve, reject) => {
@@ -171,6 +175,64 @@ export class RemoteChatBridge {
     await this.command('Input.dispatchKeyEvent', { type: 'keyDown', ...key });
     await this.command('Input.dispatchKeyEvent', { type: 'keyUp', ...key });
   }
+  async toySnapshot() {
+    const result = await this.evaluate(`(()=>{
+      const panel=document.querySelector('.control-toys-pannel');
+      const page=panel?.__vue__;
+      if(!page)return {ok:false,error:'Open an accepted Lovense Live Control slider window.'};
+      const connected=(page.controlToysArr||[]).filter(toy=>String(toy.status)==='2');
+      if(connected.length!==1)return {ok:false,error:'Exactly one accepted toy must be visible for setup.'};
+      const toy=connected[0];
+      const device=page.toys?.[toy.id]||{};
+      const sliders=[...document.querySelectorAll('.toy-slider')].map((wrapper,index)=>{
+        const input=wrapper.querySelector('input[type=range]');
+        const vm=wrapper.__vue__;
+        if(!input||!vm)return null;
+        return {index,name:String(vm.$options?.propsData?.title||wrapper.innerText||'Function '+(index+1)).trim(),min:Number(input.min),max:Number(input.max),step:Number(input.step||1),value:Number(input.value)};
+      }).filter(Boolean);
+      if(!sliders.length)return {ok:false,error:'No Lovense toy sliders are visible.'};
+      return {ok:true,toy:{id:String(toy.id),name:String(device.name||device.deviceType||toy.deviceType||'Toy'),deviceType:String(device.deviceType||toy.deviceType||''),battery:Number(device.battery),functions:sliders}};
+    })()`);
+    if (!result?.ok) throw new Error(result?.error || 'Could not inspect the Lovense toy controls.');
+    return result.toy;
+  }
+
+  async setToyControl(expectedToyId, functionIndex, requestedValue) {
+    const result = await this.evaluate(`(()=>{
+      const expected=${JSON.stringify(String(expectedToyId || ''))};
+      const index=${JSON.stringify(Number(functionIndex))};
+      const value=${JSON.stringify(Number(requestedValue))};
+      const page=document.querySelector('.control-toys-pannel')?.__vue__;
+      const connected=(page?.controlToysArr||[]).filter(toy=>String(toy.status)==='2');
+      if(connected.length!==1||String(connected[0].id)!==expected)return {ok:false,error:'The accepted Lovense toy changed.'};
+      const wrappers=[...document.querySelectorAll('.toy-slider')];
+      const wrapper=wrappers[index];
+      const input=wrapper?.querySelector('input[type=range]');
+      const vm=wrapper?.__vue__;
+      if(!input||!vm)return {ok:false,error:'The requested Lovense slider is unavailable.'};
+      const min=Number(input.min),max=Number(input.max),step=Number(input.step||1);
+      if(!Number.isFinite(value)||value<min||value>max)return {ok:false,error:'The requested slider value is outside Lovense’s range.'};
+      const aligned=Math.round((value-min)/step)*step+min;
+      if(Math.abs(aligned-value)>1e-9)return {ok:false,error:'The requested slider value does not match Lovense’s step size.'};
+      vm.controlData=value;
+      input.value=String(value);
+      input._value=value;
+      vm.rotateChange(value);
+      return {ok:true,index,value,name:String(vm.$options?.propsData?.title||wrapper.innerText||'Function '+(index+1)).trim()};
+    })()`);
+    if (!result?.ok) throw new Error(result?.error || 'Could not change the Lovense toy control.');
+    return result;
+  }
+
+  async stopToy(expectedToyId) {
+    const toy = await this.toySnapshot();
+    if (String(toy.id) !== String(expectedToyId || toy.id)) throw new Error('The accepted Lovense toy changed.');
+    const results = [];
+    for (const control of toy.functions) results.push(await this.setToyControl(toy.id, control.index, 0));
+    return results;
+  }
 }
+
+
 
 

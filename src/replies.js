@@ -15,26 +15,28 @@ function formatAmericanDate(value) {
   return `${monthName} ${day}, ${year}`;
 }
 
-function templateReply(config, message) {
+function templateReply(config, message, history = []) {
   const text = String(message || '').trim();
+  const conversationalTurns = history.filter(item => item?.role === 'user').length;
+  const choose = candidates => candidates[conversationalTurns % candidates.length];
   const fullName = [config.chatFirstName, config.chatLastName].filter(Boolean).join(' ');
   const name = config.chatDisplayName || fullName || config.chatUsername;
-  if (/\b(what(?:’|'| i)s your name|who are you|what should i call you)\b/i.test(text)) return name ? `You can call me ${name}. Say it nicely for me 😉` : unknownFact('Curious about me already?');
-  if (/\b(what(?:’|'| i)s your first name)\b/i.test(text)) return config.chatFirstName ? `My first name is ${config.chatFirstName}. Remember it 😉` : unknownFact('You want my first name?');
-  if (/\b(what(?:’|'| i)s your last name|what(?:’|'| i)s your surname)\b/i.test(text)) return config.chatLastName ? `My last name is ${config.chatLastName}. Don’t wear it out 😉` : unknownFact('Going for my full identity already?');
-  if (/\b(when is your birthday|what(?:’|'| i)s your birthday|what(?:’|'| i)s your date of birth|when were you born)\b/i.test(text)) return config.chatDateOfBirth ? `My birthday is ${formatAmericanDate(config.chatDateOfBirth)}. You can remember that for me 😉` : unknownFact('Planning ahead for my birthday?');
-  if (/\b(where were you born|what(?:’|'| i)s your place of birth)\b/i.test(text)) return config.chatPlaceOfBirth ? `I was born in ${config.chatPlaceOfBirth}. Now you know a little more about me 😉` : unknownFact('Digging into my origin story?');
-  if (/\b(do you have (?:any )?(?:children|kids)|how many (?:children|kids) do you have|are you a (?:mom|mother|dad|father|parent))\b/i.test(text)) return config.chatChildren ? `${config.chatChildren}. That’s all you need to know about that for now 😉` : unknownFact('That’s a personal one.');
-  if (/\b(how old are you|what(?:’|'| i)s your age)\b/i.test(text)) return config.chatAge ? `I’m ${config.chatAge}. Old enough to know exactly what I want 😉` : unknownFact('That’s a bold question.');
-  if (/\b(where are you from|where do you live|where are you located)\b/i.test(text)) return config.chatLocation ? `I’m in ${config.chatLocation}. Close enough to keep your attention 😉` : unknownFact('Trying to find me?');
-  if (/\b(what do you do|what(?:’|'| i)s your job|where do you work)\b/i.test(text)) return config.chatOccupation ? `I work as ${config.chatOccupation}. But right now, you have my attention 😉` : unknownFact('You want to know how I spend my days?');
-  if (/\b(what are you into|what do you like|what are your interests|what are your hobbies)\b/i.test(text)) return config.chatInterests ? `I’m into ${config.chatInterests}. Now tell me what gets your attention 😉` : unknownFact('Mmm, eager to learn what I like?');
-  if (/\b(are you single|relationship status|do you have a partner)\b/i.test(text)) return config.chatRelationshipStatus ? `I’m ${config.chatRelationshipStatus}. Does that satisfy your curiosity? 😉` : unknownFact('Getting personal already?');
-  if (/\b(what are your pronouns|which pronouns do you use)\b/i.test(text)) return config.chatPronouns ? `I use ${config.chatPronouns}. Remember them for me 😉` : 'Ask me directly which pronouns I use, and I’ll tell you.';
-  if (/^(hi|hey|hello|hiya)\b/i.test(text)) return "Hey, you. I was wondering when you'd come looking for my attention 😉";
-  if (/how are you|how(?:’|'| a)?re you/i.test(text)) return "Better now that you're here. Tell me what you've been up to 😉";
-  if (/\?$/.test(text)) return 'Maybe. Ask me nicely, and I might give you the answer you want 😉';
-  return 'Mmm, I like the way you’re thinking. Keep talking 😉';
+  if (/\b(what(?:’|'| i)s your name|who are you|what should i call you)\b/i.test(text)) return name ? `You can call me ${name}. What should I call you?` : unknownFact('Curious about me already?');
+  if (/\b(what(?:’|'| i)s your first name)\b/i.test(text)) return config.chatFirstName ? `My first name is ${config.chatFirstName}. What’s yours?` : unknownFact('You want my first name?');
+  if (/\b(what(?:’|'| i)s your last name|what(?:’|'| i)s your surname)\b/i.test(text)) return config.chatLastName ? `My last name is ${config.chatLastName}. What made you ask?` : unknownFact('Going for my full identity already?');
+  if (/\b(when is your birthday|what(?:’|'| i)s your birthday|what(?:’|'| i)s your date of birth|when were you born)\b/i.test(text)) return config.chatDateOfBirth ? `My birthday is ${formatAmericanDate(config.chatDateOfBirth)}. When is yours?` : unknownFact('Planning ahead for my birthday?');
+  if (/\b(where were you born|what(?:’|'| i)s your place of birth)\b/i.test(text)) return config.chatPlaceOfBirth ? `I was born in ${config.chatPlaceOfBirth}. Where were you born?` : unknownFact('Digging into my origin story?');
+  if (/\b(do you have (?:any )?(?:children|kids)|how many (?:children|kids) do you have|are you a (?:mom|mother|dad|father|parent))\b/i.test(text)) return config.chatChildren ? `${config.chatChildren}. How about you?` : unknownFact('That’s a personal one.');
+  if (/\b(how old are you|what(?:’|'| i)s your age)\b/i.test(text)) return config.chatAge ? `I’m ${config.chatAge}. How old are you?` : unknownFact('That’s a bold question.');
+  if (/\b(where are you from|where do you live|where are you located)\b/i.test(text)) return config.chatLocation ? `I’m in ${config.chatLocation}. Where are you from?` : unknownFact('Trying to find me?');
+  if (/\b(what do you do|what(?:’|'| i)s your job|where do you work)\b/i.test(text)) return config.chatOccupation ? `I work as ${config.chatOccupation}. What do you do?` : unknownFact('You want to know how I spend my days?');
+  if (/\b(what are you into|what do you like|what are your interests|what are your hobbies)\b/i.test(text)) return config.chatInterests ? `I’m into ${config.chatInterests}. What do you enjoy?` : unknownFact('Mmm, eager to learn what I like?');
+  if (/\b(are you single|relationship status|do you have a partner)\b/i.test(text)) return config.chatRelationshipStatus ? `I’m ${config.chatRelationshipStatus}. What about you?` : unknownFact('Getting personal already?');
+  if (/\b(what are your pronouns|which pronouns do you use)\b/i.test(text)) return config.chatPronouns ? `I use ${config.chatPronouns}. Which pronouns do you use?` : 'Which pronouns do you use? You can ask me mine too.';
+  if (/^(hi|hey|hello|hiya)\b/i.test(text)) return choose(['Hey! How has your day been?', 'Hi there. What are you up to today?', 'Hey, you. It’s good to hear from you 😉']);
+  if (/how are you|how(?:’|'| a)?re you/i.test(text)) return choose(['I’m doing well. How are you feeling today?', 'Pretty good, thanks for asking. What has your day been like?', 'Better now that you’re here. What have you been up to? 😉']);
+  if (/\?$/.test(text)) return choose(['That’s a good question. What makes you ask?', 'I’m thinking about that. What do you think?', 'Maybe. Tell me a little more about what you mean.', 'Ask me nicely, and I might give you the answer you want 😉']);
+  return choose(['Tell me more—what happened next?', 'That’s interesting. How do you feel about it?', 'I’m listening. What made you think of that?', 'Mmm, I like the way you’re thinking. Keep talking 😉']);
 }
 
 async function requestJson(url, options, fetchImpl) {
@@ -44,10 +46,13 @@ async function requestJson(url, options, fetchImpl) {
   return body;
 }
 
-export async function generateReply(config, message, fetchImpl = globalThis.fetch) {
-  if (config.replyProvider === 'template') return compact(templateReply(config, message), config.maxReplyChars);
+export async function generateReply(config, message, fetchImpl = globalThis.fetch, options = {}) {
+  const history = Array.isArray(options.history) ? options.history.slice(-config.conversationMemoryMessages) : [];
+  if (config.replyProvider === 'template') return compact(templateReply(config, message, history), config.maxReplyChars);
+  const includeHistory = config.replyProvider === 'ollama' || config.sendMemoryToOpenAI;
   const messages = [
     { role: 'system', content: config.replySystemPrompt },
+    ...(includeHistory ? history : []),
     { role: 'user', content: String(message || '') }
   ];
   if (config.replyProvider === 'ollama') {
@@ -64,4 +69,32 @@ export async function generateReply(config, message, fetchImpl = globalThis.fetc
   }, fetchImpl);
   return compact(body.choices?.[0]?.message?.content, config.maxReplyChars);
 }
+export function createReplyDeduper(historyLimit = 100) {
+  const histories = new Map();
+  const repetitions = new Map();
+  const normalize = value => String(value || '').replace(/\s+/g, ' ').trim().toLocaleLowerCase('en-US');
+  const lowerFirst = value => value ? value[0].toLocaleLowerCase('en-US') + value.slice(1) : value;
+  const prefixes = ['I already told you—', 'Pay attention—', 'Still the same answer—', 'You’re making me repeat myself—'];
+
+  return (conversation, reply) => {
+    const conversationKey = normalize(conversation);
+    const original = String(reply || '').replace(/\s+/g, ' ').trim();
+    const replyKey = normalize(original);
+    if (!conversationKey || !replyKey) return original;
+    const history = histories.get(conversationKey) || [];
+    let result = original;
+    if (history.includes(replyKey)) {
+      const repetitionKey = `${conversationKey}\0${replyKey}`;
+      const count = (repetitions.get(repetitionKey) || 1) + 1;
+      repetitions.set(repetitionKey, count);
+      const prefix = prefixes[count - 2] || `That’s ${count} times now—`;
+      result = `${prefix}${lowerFirst(original)}`;
+    }
+    history.push(normalize(result));
+    if (history.length > historyLimit) history.splice(0, history.length - historyLimit);
+    histories.set(conversationKey, history);
+    return result;
+  };
+}
+
 

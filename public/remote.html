@@ -23,6 +23,14 @@
       <button id="auto-send" class="secondary" type="button">Enable automatic sending</button>
     </section>
 
+    <section class="toy-card card">
+      <div class="toy-heading">
+        <div><p class="label">Live Control · one toy at a time</p><h2 id="toy-name">No accepted toy session</h2><p id="toy-detail">Open Live Control and wait for the other user to accept.</p></div>
+        <div class="button-row"><button id="toy-enable" class="secondary" type="button" disabled>Enable toy controls</button><button id="toy-stop" class="danger" type="button" disabled>Stop toy</button></div>
+      </div>
+      <div id="toy-functions" class="toy-functions"><div class="empty">No first-toy sliders detected.</div></div>
+    </section>
+
     <section class="summary-grid">
       <article class="card"><p class="label">Open conversation</p><strong id="conversation">None</strong></article>
       <article class="card"><p class="label">Reply engine</p><strong id="provider">—</strong></article>
@@ -43,5 +51,6 @@
   <script src="/remote.js"></script>
 </body>
 </html>
+
 
 

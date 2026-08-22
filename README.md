@@ -14,6 +14,7 @@ This project does not use the Lovense developer API, pairing callbacks, Cloudfla
 - Supports explicit opt-in automatic sending with a randomized reaction and reply-length typing delay.
 - Lets you edit a proposed reply, place it in Lovense as an unsent draft, dismiss it, or explicitly send it.
 - Rechecks the conversation title immediately before drafting and sending.
+- Avoids repeating the same generated answer within a conversation and uses a natural callback when a provider returns duplicate text.
 
 ## Start on Windows
 
@@ -22,6 +23,7 @@ Requirements:
 - Node.js 20 or newer.
 - Lovense Remote for Windows installed at its normal per-user location.
 - Lovense Remote logged in.
+- Permission to approve the Windows Administrator prompt when Lovense Remote starts; elevated mode is required for its toy controls to appear.
 
 From PowerShell:
 
@@ -32,7 +34,7 @@ if (-not (Test-Path config.ini)) { Copy-Item config.example.ini config.ini }
 
 ```
 
-The launcher creates `config.ini` from the fully commented, grouped example when neither `config.ini` nor a legacy `.env` exists. It then restarts Lovense Remote only when its localhost inspection endpoint is unavailable, then starts the review dashboard. Open:
+The launcher creates `config.ini` from the fully commented, grouped example when neither `config.ini` nor a legacy `.env` exists. When the localhost inspection endpoint is unavailable, it starts Lovense Remote as Administrator from its installation directory; approve the UAC prompt. Starting from the installation directory prevents `./resources/app/dist/` path errors. After Lovense opens, manually navigate to Messages and select the intended conversation. The launcher then starts the review dashboard. Open:
 
 `http://127.0.0.1:3000`
 
@@ -117,7 +119,9 @@ The default persona is concise, natural, dominant, teasing, and flirty. It is re
 ## Safety and privacy
 
 - The dashboard and Lovense inspection endpoint bind only to `127.0.0.1`.
-- Automatic sending is disabled by default. Enable it from the localhost dashboard or set `ENABLE_AUTO_SEND=true` in the private `config.ini`.
+- Automatic sending is disabled by default. Enable it from the localhost dashboard or set ENABLE_AUTO_SEND=true in the private config.ini.
+- Toy controls start disabled on every server launch, accept only one detected toy during initial setup, enforce Lovense's own range and step, and disable if the accepted toy changes.
+- Conversation memory stays in process memory and resets when the server stops. OpenAI history sharing is separately disabled by default.
 - Message text exists in process memory and the browser review page but is not written to disk by this project.
 - The review queue resets when the Node process stops.
 - Any local process running as your Windows user may be able to connect to a local debugging port. Stop the assistant when it is not needed, and restart Lovense Remote normally if you want the debugging endpoint removed.
@@ -131,6 +135,9 @@ npm test
 ```
 
 Automated tests cover safe defaults, reply-provider validation, deduplication keys, existing command-policy tests, and template reply isolation. Tests do not send a real Lovense message. Live sending must be confirmed manually from the review dashboard.
+
+
+
 
 
 

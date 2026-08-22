@@ -56,6 +56,42 @@ test('automatic send rechecks the conversation and clicks the Lovense Send contr
   assert.equal(inputRequests.at(-1).params.key, 'Enter');
   assert.equal(requests.some(request => request.method === 'Page.bringToFront' || request.method === 'Target.activateTarget'), false);
 });
-
-
+test('targets the separate Live Control renderer and validates a bounded slider command', async () => {
+  let connectedUrl = '';
+  let expression = '';
+  class FakeWebSocket {
+    static OPEN = 1;
+    constructor(url) {
+      connectedUrl = url;
+      this.readyState = 0;
+      this.listeners = new Map();
+      queueMicrotask(() => { this.readyState = FakeWebSocket.OPEN; this.emit('open', {}); });
+    }
+    addEventListener(type, listener) {
+      const listeners = this.listeners.get(type) || [];
+      listeners.push(listener);
+      this.listeners.set(type, listeners);
+    }
+    emit(type, event) { for (const listener of this.listeners.get(type) || []) listener(event); }
+    send(raw) {
+      const request = JSON.parse(raw);
+      expression = request.params.expression;
+      queueMicrotask(() => this.emit('message', { data: JSON.stringify({ id: request.id, result: { result: { value: { ok: true, index: 0, value: 2.4, name: 'Vibrate' } } } }) }));
+    }
+  }
+  const fetchImpl = async () => ({
+    ok: true,
+    json: async () => [
+      { type: 'page', title: 'Lovense Remote', url: 'file:///resources/app/dist/window.html', webSocketDebuggerUrl: 'ws://127.0.0.1/control' },
+      { type: 'page', title: 'Lovense Remote', url: 'file:///resources/app/dist/index.html#/long-distance', webSocketDebuggerUrl: 'ws://127.0.0.1/chat' }
+    ]
+  });
+  const bridge = new RemoteChatBridge({ targetUrlIncludes: '/window.html', fetchImpl, WebSocketImpl: FakeWebSocket });
+  const result = await bridge.setToyControl('expected-toy', 0, 2.4);
+  assert.equal(connectedUrl, 'ws://127.0.0.1/control');
+  assert.equal(result.value, 2.4);
+  assert.match(expression, /String\(connected\[0\]\.id\)!==expected/);
+  assert.match(expression, /value<min\|\|value>max/);
+  assert.match(expression, /vm\.rotateChange\(value\)/);
+});
 

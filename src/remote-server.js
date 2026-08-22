@@ -5,12 +5,15 @@ import { fileURLToPath } from 'node:url';
 import { constantTimeEqual } from './policy.js';
 import { loadRemoteConfig } from './remote-config.js';
 import { RemoteChatBridge, fingerprint } from './remote-chat.js';
-import { generateReply } from './replies.js';
+import { createReplyDeduper, generateReply } from './replies.js';
 
 const config = loadRemoteConfig();
-const bridge = new RemoteChatBridge({ debugUrl: config.debugUrl });
+const bridge = new RemoteChatBridge({ debugUrl: config.debugUrl, targetUrlIncludes: '/index.html' });
+const toyBridge = new RemoteChatBridge({ debugUrl: config.debugUrl, targetUrlIncludes: '/window.html' });
 const publicDir = fileURLToPath(new URL('../public/', import.meta.url));
 const seen = new Set();
+const dedupeReply = createReplyDeduper();
+const conversationMemories = new Map();
 const reviews = [];
 let watching = false;
 let scanning = false;
@@ -20,6 +23,8 @@ let lastScanAt = null;
 let lastError = '';
 let nextReviewId = 1;
 let autoSend = config.autoSend;
+let toyControlEnabled = false;
+let selectedToyId = '';
 const autoTimers = new Map();
 
 function json(response, status, data) {
@@ -69,10 +74,36 @@ function publicState() {
     autoSendMinDelayMs: config.autoSendMinDelayMs,
     autoSendMaxDelayMs: config.autoSendMaxDelayMs,
     autoSendTypingMsPerChar: config.autoSendTypingMsPerChar,
+    toyControlEnabled,
     reviews: reviews.map(item => ({ ...item }))
   };
 }
 
+function publicToy(toy) {
+  return {
+    available: true,
+    enabled: toyControlEnabled,
+    name: toy.name,
+    deviceType: toy.deviceType,
+    battery: Number.isFinite(toy.battery) ? toy.battery : null,
+    functions: toy.functions.map(control => ({ ...control }))
+  };
+}
+
+async function toyState() {
+  try {
+    const toy = await toyBridge.toySnapshot();
+    if (selectedToyId && selectedToyId !== toy.id) {
+      toyControlEnabled = false;
+      selectedToyId = '';
+    }
+    return publicToy(toy);
+  } catch (error) {
+    toyControlEnabled = false;
+    selectedToyId = '';
+    return { available: false, enabled: false, error: error.message, functions: [] };
+  }
+}
 function humanDelayMs(reply, random = Math.random) {
   const reactionRange = config.autoSendMaxDelayMs - config.autoSendMinDelayMs;
   return config.autoSendMinDelayMs + Math.floor(random() * (reactionRange + 1));
@@ -111,6 +142,20 @@ function scheduleAuto(item) {
   timeout.unref();
   autoTimers.set(item.id, timeout);
 }
+function seedConversationMemory(conversation, messages) {
+  const history = messages
+    .filter(item => item.type === 'text' && item.text && (item.direction === 'incoming' || item.direction === 'outgoing'))
+    .map(item => ({ role: item.direction === 'incoming' ? 'user' : 'assistant', content: item.text }))
+    .slice(-config.conversationMemoryMessages);
+  conversationMemories.set(conversation, history);
+}
+
+function rememberConversationTurn(conversation, role, content) {
+  const history = conversationMemories.get(conversation) || [];
+  history.push({ role, content: String(content || '').trim() });
+  if (history.length > config.conversationMemoryMessages) history.splice(0, history.length - config.conversationMemoryMessages);
+  conversationMemories.set(conversation, history);
+}
 async function scan({ baseline = false } = {}) {
   if (scanning) return;
   scanning = true;
@@ -122,13 +167,18 @@ async function scan({ baseline = false } = {}) {
     const keyed = incoming.map(item => ({ ...item, key: fingerprint(snapshot.conversation, `${item.index}\0${item.text}`) }));
 
     if (baseline || conversationChanged) {
+      seedConversationMemory(snapshot.conversation, snapshot.messages);
       for (const item of keyed) seen.add(item.key);
     } else {
       const fresh = keyed.filter(item => !seen.has(item.key));
       for (const item of fresh) seen.add(item.key);
       if (fresh.length) {
         const combinedMessage = fresh.map(item => item.text).join('\n');
-        const reply = await generateReply(config, combinedMessage);
+        const history = conversationMemories.get(snapshot.conversation) || [];
+        const generatedReply = await generateReply(config, combinedMessage, globalThis.fetch, { history });
+        const reply = dedupeReply(snapshot.conversation, generatedReply);
+        rememberConversationTurn(snapshot.conversation, 'user', combinedMessage);
+        rememberConversationTurn(snapshot.conversation, 'assistant', reply);
         const review = {
           id: String(nextReviewId++),
           conversation: snapshot.conversation,
@@ -171,6 +221,36 @@ async function api(request, response, pathname) {
   if (request.method !== 'GET' && !sameOrigin(request)) return json(response, 403, { error: 'Request origin was rejected.' });
   try {
     if (request.method === 'GET' && pathname === '/api/status') return json(response, 200, publicState());
+    if (request.method === 'GET' && pathname === '/api/toys') return json(response, 200, await toyState());
+    if (request.method === 'POST' && pathname === '/api/toys/enable') {
+      const body = await readJson(request);
+      if (body.enabled === true) {
+        const toy = await toyBridge.toySnapshot();
+        selectedToyId = toy.id;
+        toyControlEnabled = true;
+        return json(response, 200, publicToy(toy));
+      }
+      if (selectedToyId) {
+        try { await toyBridge.stopToy(selectedToyId); } catch {}
+      }
+      toyControlEnabled = false;
+      selectedToyId = '';
+      return json(response, 200, await toyState());
+    }
+    if (request.method === 'POST' && pathname === '/api/toys/control') {
+      if (!toyControlEnabled || !selectedToyId) throw new Error('Enable toy controls before changing a slider.');
+      const body = await readJson(request);
+      const functionIndex = Number(body.functionIndex);
+      const value = Number(body.value);
+      if (!Number.isInteger(functionIndex) || !Number.isFinite(value)) throw new Error('A valid toy function and value are required.');
+      await toyBridge.setToyControl(selectedToyId, functionIndex, value);
+      return json(response, 200, publicToy(await toyBridge.toySnapshot()));
+    }
+    if (request.method === 'POST' && pathname === '/api/toys/stop') {
+      const toy = await toyBridge.toySnapshot();
+      await toyBridge.stopToy(toy.id);
+      return json(response, 200, publicToy(await toyBridge.toySnapshot()));
+    }
     if (request.method === 'POST' && pathname === '/api/auto-send') {
       const body = await readJson(request);
       autoSend = body.enabled === true;
@@ -209,7 +289,7 @@ async function api(request, response, pathname) {
         item.reply,
         item.conversation,
         config.autoSendTypingMsPerChar,
-        () => autoSend && watching && item.status === 'waiting'
+        () => true
       );
       item.status = 'sent';
       item.sentAt = new Date().toISOString();
@@ -262,4 +342,7 @@ process.on('SIGINT', () => {
   stopWatching();
   server.close(() => process.exit(0));
 });
+
+
+
 

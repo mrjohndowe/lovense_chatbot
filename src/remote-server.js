@@ -1,0 +1,201 @@
+import { createServer } from 'node:http';
+import { readFile } from 'node:fs/promises';
+import { extname, join, normalize } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { constantTimeEqual } from './policy.js';
+import { loadRemoteConfig } from './remote-config.js';
+import { RemoteChatBridge, fingerprint } from './remote-chat.js';
+import { generateReply } from './replies.js';
+
+const config = loadRemoteConfig();
+const bridge = new RemoteChatBridge({ debugUrl: config.debugUrl });
+const publicDir = fileURLToPath(new URL('../public/', import.meta.url));
+const seen = new Set();
+const reviews = [];
+let watching = false;
+let scanning = false;
+let timer = null;
+let activeConversation = '';
+let lastScanAt = null;
+let lastError = '';
+let nextReviewId = 1;
+
+function json(response, status, data) {
+  response.writeHead(status, {
+    'content-type': 'application/json; charset=utf-8',
+    'cache-control': 'no-store',
+    'x-content-type-options': 'nosniff',
+    'content-security-policy': "default-src 'none'; frame-ancestors 'none'"
+  });
+  response.end(JSON.stringify(data));
+}
+
+function authorized(request) {
+  if (!config.accessToken) return true;
+  return constantTimeEqual(request.headers.authorization, `Bearer ${config.accessToken}`);
+}
+
+function sameOrigin(request) {
+  const origin = request.headers.origin;
+  return !origin || origin === `http://127.0.0.1:${config.port}` || origin === `http://localhost:${config.port}`;
+}
+
+async function readJson(request) {
+  const chunks = [];
+  let size = 0;
+  for await (const chunk of request) {
+    size += chunk.length;
+    if (size > 65_536) throw new Error('Request is too large.');
+    chunks.push(chunk);
+  }
+  try { return JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}'); }
+  catch { throw new Error('Request body must be valid JSON.'); }
+}
+
+function publicState() {
+  return {
+    watching,
+    connected: Boolean(activeConversation && !lastError),
+    activeConversation,
+    lastScanAt,
+    lastError,
+    pollMs: config.pollMs,
+    replyProvider: config.replyProvider,
+    replyModel: config.replyModel,
+    reviewMode: true,
+    reviews: reviews.map(item => ({ ...item }))
+  };
+}
+
+async function scan({ baseline = false } = {}) {
+  if (scanning) return;
+  scanning = true;
+  try {
+    const snapshot = await bridge.snapshot();
+    const conversationChanged = snapshot.conversation !== activeConversation;
+    activeConversation = snapshot.conversation;
+    const incoming = snapshot.messages.filter(item => item.direction === 'incoming' && item.type === 'text' && item.text);
+    const keyed = incoming.map(item => ({ ...item, key: fingerprint(snapshot.conversation, `${item.index}\0${item.text}`) }));
+
+    if (baseline || conversationChanged) {
+      for (const item of keyed) seen.add(item.key);
+    } else {
+      const fresh = keyed.filter(item => !seen.has(item.key));
+      for (const item of fresh) seen.add(item.key);
+      if (fresh.length) {
+        const combinedMessage = fresh.map(item => item.text).join('\n');
+        const reply = await generateReply(config, combinedMessage);
+        reviews.push({
+          id: String(nextReviewId++),
+          conversation: snapshot.conversation,
+          message: combinedMessage,
+          reply,
+          status: 'waiting',
+          createdAt: new Date().toISOString()
+        });
+        while (reviews.length > 20) reviews.shift();
+      }
+    }
+    lastScanAt = new Date().toISOString();
+    lastError = '';
+  } catch (error) {
+    activeConversation = '';
+    lastError = error.message;
+  } finally {
+    scanning = false;
+  }
+}
+
+async function startWatching() {
+  if (watching) return;
+  watching = true;
+  await scan({ baseline: true });
+  timer = setInterval(scan, config.pollMs);
+  timer.unref();
+}
+
+function stopWatching() {
+  watching = false;
+  if (timer) clearInterval(timer);
+  timer = null;
+}
+
+async function api(request, response, pathname) {
+  if (!authorized(request)) return json(response, 401, { error: 'Access token required.' });
+  if (request.method !== 'GET' && !sameOrigin(request)) return json(response, 403, { error: 'Request origin was rejected.' });
+  try {
+    if (request.method === 'GET' && pathname === '/api/status') return json(response, 200, publicState());
+    if (request.method === 'POST' && pathname === '/api/monitor/start') {
+      await startWatching();
+      return json(response, 200, publicState());
+    }
+    if (request.method === 'POST' && pathname === '/api/monitor/stop') {
+      stopWatching();
+      return json(response, 200, publicState());
+    }
+    if (request.method === 'POST' && pathname === '/api/review/draft') {
+      const body = await readJson(request);
+      const item = reviews.find(review => review.id === String(body.id));
+      if (!item) return json(response, 404, { error: 'Review item was not found.' });
+      item.reply = String(body.reply || '').trim().slice(0, config.maxReplyChars);
+      await bridge.fillDraft(item.reply, item.conversation);
+      item.status = 'drafted';
+      return json(response, 200, { item });
+    }
+    if (request.method === 'POST' && pathname === '/api/review/send') {
+      const body = await readJson(request);
+      const item = reviews.find(review => review.id === String(body.id));
+      if (!item) return json(response, 404, { error: 'Review item was not found.' });
+      item.reply = String(body.reply || '').trim().slice(0, config.maxReplyChars);
+      await bridge.fillDraft(item.reply, item.conversation);
+      await bridge.send(item.conversation);
+      item.status = 'sent';
+      item.sentAt = new Date().toISOString();
+      return json(response, 200, { item });
+    }
+    if (request.method === 'POST' && pathname === '/api/review/dismiss') {
+      const body = await readJson(request);
+      const item = reviews.find(review => review.id === String(body.id));
+      if (!item) return json(response, 404, { error: 'Review item was not found.' });
+      item.status = 'dismissed';
+      return json(response, 200, { item });
+    }
+    return json(response, 404, { error: 'Not found.' });
+  } catch (error) {
+    return json(response, 400, { error: error.message });
+  }
+}
+
+async function staticFile(response, pathname) {
+  const requested = pathname === '/' ? 'remote.html' : pathname.slice(1);
+  const safePath = normalize(requested).replace(/^(\.\.[/\\])+/, '');
+  const filePath = join(publicDir, safePath);
+  if (!filePath.startsWith(publicDir)) return json(response, 404, { error: 'Not found.' });
+  const types = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8' };
+  try {
+    const content = await readFile(filePath);
+    response.writeHead(200, {
+      'content-type': types[extname(filePath)] || 'application/octet-stream',
+      'cache-control': 'no-store',
+      'x-content-type-options': 'nosniff',
+      'content-security-policy': "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; frame-ancestors 'none'"
+    });
+    response.end(content);
+  } catch { json(response, 404, { error: 'Not found.' }); }
+}
+
+const server = createServer(async (request, response) => {
+  const url = new URL(request.url, `http://${request.headers.host || 'localhost'}`);
+  if (url.pathname.startsWith('/api/')) return api(request, response, url.pathname);
+  return staticFile(response, url.pathname);
+});
+
+server.listen(config.port, '127.0.0.1', async () => {
+  console.log(`Lovense Remote Reply Assistant running at http://127.0.0.1:${config.port} (review mode)`);
+  if (config.monitorEnabled) await startWatching();
+});
+
+process.on('SIGINT', () => {
+  stopWatching();
+  server.close(() => process.exit(0));
+});

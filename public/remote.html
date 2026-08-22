@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lovense Remote Reply Assistant</title>
+  <link rel="stylesheet" href="/remote.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="hero">
+      <div><p class="eyebrow">PERSONAL · LOCALHOST ONLY</p><h1>Remote Reply Assistant</h1><p class="subtitle">Watches only the conversation currently open in Lovense Remote and prepares replies for your review.</p></div>
+      <div id="connection" class="status disconnected"><span></span><strong>Connecting…</strong></div>
+    </header>
+
+    <section class="controls card">
+      <div><p class="label">Monitor</p><p id="monitor-detail">Checking Lovense Remote…</p></div>
+      <div class="button-row"><button id="start" type="button">Start watching</button><button id="stop" class="secondary" type="button">Pause</button></div>
+    </section>
+
+    <section class="summary-grid">
+      <article class="card"><p class="label">Open conversation</p><strong id="conversation">None</strong></article>
+      <article class="card"><p class="label">Reply engine</p><strong id="provider">—</strong></article>
+      <article class="card"><p class="label">Safety mode</p><strong>Review required</strong></article>
+    </section>
+
+    <section class="queue-section">
+      <div class="section-heading"><div><p class="eyebrow">INBOX</p><h2>Replies waiting for review</h2></div><button id="refresh" class="secondary" type="button">Refresh</button></div>
+      <div id="error" class="error hidden"></div>
+      <div id="queue" class="queue"><div class="empty">No new incoming messages are waiting.</div></div>
+    </section>
+
+    <section class="notice">
+      <strong>Nothing is sent automatically.</strong>
+      <p>“Place draft” fills the Lovense editor but does not send. “Send now” posts the reviewed text to the named conversation after a final confirmation.</p>
+    </section>
+  </main>
+  <script src="/remote.js"></script>
+</body>
+</html>

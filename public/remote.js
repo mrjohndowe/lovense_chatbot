@@ -1,0 +1,110 @@
+const state = { token: sessionStorage.getItem('remote-reply-token') || '', data: null };
+const queue = document.querySelector('#queue');
+const errorBox = document.querySelector('#error');
+
+function headers() {
+  return { 'content-type': 'application/json', ...(state.token ? { authorization: `Bearer ${state.token}` } : {}) };
+}
+
+async function request(path, options = {}) {
+  const response = await fetch(path, { ...options, headers: { ...headers(), ...(options.headers || {}) } });
+  if (response.status === 401) {
+    const token = window.prompt('Enter CHATBOT_ACCESS_TOKEN from your private .env:');
+    if (token === null) throw new Error('Access token is required.');
+    state.token = token.trim();
+    sessionStorage.setItem('remote-reply-token', state.token);
+    return request(path, options);
+  }
+  const body = await response.json();
+  if (!response.ok) throw new Error(body.error || `Request failed with HTTP ${response.status}.`);
+  return body;
+}
+
+function showError(message = '') {
+  errorBox.textContent = message;
+  errorBox.classList.toggle('hidden', !message);
+}
+
+function reviewCard(item) {
+  const article = document.createElement('article');
+  article.className = 'review';
+  article.dataset.id = item.id;
+  const top = document.createElement('div');
+  top.className = 'review-top';
+  const title = document.createElement('strong');
+  title.textContent = item.conversation;
+  const badge = document.createElement('span');
+  badge.className = 'badge';
+  badge.textContent = item.status === 'drafted' ? 'Draft placed' : 'Waiting';
+  top.append(title, badge);
+  const message = document.createElement('div');
+  message.className = 'message';
+  message.textContent = item.message;
+  const label = document.createElement('label');
+  label.textContent = 'Review or edit the proposed reply';
+  const textarea = document.createElement('textarea');
+  textarea.value = item.reply;
+  textarea.maxLength = 2000;
+  const actions = document.createElement('div');
+  actions.className = 'review-actions';
+  for (const [action, labelText, className] of [['dismiss','Dismiss','secondary'],['draft','Place draft','secondary'],['send','Send now','danger']]) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.dataset.action = action;
+    button.className = className;
+    button.textContent = labelText;
+    actions.append(button);
+  }
+  article.append(top, message, label, textarea, actions);
+  return article;
+}
+
+function render(data) {
+  state.data = data;
+  const connection = document.querySelector('#connection');
+  connection.classList.toggle('connected', data.connected);
+  connection.classList.toggle('disconnected', !data.connected);
+  connection.querySelector('strong').textContent = data.connected ? 'Lovense connected' : 'Lovense unavailable';
+  document.querySelector('#conversation').textContent = data.activeConversation || 'No open conversation';
+  document.querySelector('#provider').textContent = `${data.replyProvider} · ${data.replyModel}`;
+  document.querySelector('#monitor-detail').textContent = data.watching ? `Watching every ${Math.round(data.pollMs / 100) / 10} seconds` : 'Paused';
+  document.querySelector('#start').disabled = data.watching;
+  document.querySelector('#stop').disabled = !data.watching;
+  showError(data.lastError || '');
+  const active = data.reviews.filter(item => item.status === 'waiting' || item.status === 'drafted');
+  queue.replaceChildren(...(active.length ? active.map(reviewCard) : [Object.assign(document.createElement('div'), { className: 'empty', textContent: 'No new incoming messages are waiting.' })]));
+}
+
+async function refresh() {
+  try { render(await request('/api/status')); }
+  catch (error) { showError(error.message); }
+}
+
+async function monitor(action) {
+  try { render(await request(`/api/monitor/${action}`, { method: 'POST', body: '{}' })); }
+  catch (error) { showError(error.message); }
+}
+
+queue.addEventListener('click', async event => {
+  const button = event.target.closest('button[data-action]');
+  if (!button) return;
+  const card = button.closest('.review');
+  const id = card.dataset.id;
+  const reply = card.querySelector('textarea').value.trim();
+  const action = button.dataset.action;
+  if (action === 'send' && !window.confirm(`Send this reply now to ${card.querySelector('strong').textContent}?`)) return;
+  button.disabled = true;
+  try {
+    await request(`/api/review/${action}`, { method: 'POST', body: JSON.stringify({ id, reply }) });
+    await refresh();
+  } catch (error) {
+    showError(error.message);
+    button.disabled = false;
+  }
+});
+
+document.querySelector('#start').addEventListener('click', () => monitor('start'));
+document.querySelector('#stop').addEventListener('click', () => monitor('stop'));
+document.querySelector('#refresh').addEventListener('click', refresh);
+refresh();
+setInterval(refresh, 2500);

@@ -22,6 +22,8 @@ node --env-file=.env src/server.js
 
 Open `http://127.0.0.1:3000`. Mock mode simulates successful commands without activating hardware.
 
+For personal localhost use, leave `LOVENSE_MODE=mock` until you are ready to connect your own device. The server binds only to `127.0.0.1`, loads the private `.env` automatically, and does not require XAMPP, Cloudflare, a tunnel, a subdomain, or any enabled chat-platform integration.
+
 ## Commands
 
 - `/vibe 10 5` — vibration strength 10 for 5 seconds

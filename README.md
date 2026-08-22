@@ -54,6 +54,8 @@ Keep the PowerShell window open. Press `Ctrl+C` to stop the dashboard. Lovense R
 
 The initial version intentionally does not jump among contacts. That prevents a reply intended for one person from being entered into another conversation.
 
+Lovense Remote does not need to be the active Windows window. It may remain behind other applications while the assistant types through its local DevTools connection. Keep the intended conversation selected inside Lovense; the assistant does not activate the window or switch contacts.
+
 ## Automatic sending and human-style delay
 
 Automatic sending is off by default. Enable it from the localhost dashboard after opening the intended Lovense conversation. When armed, the assistant:
@@ -74,7 +76,7 @@ AUTO_SEND_MAX_DELAY_SECONDS=25
 AUTO_SEND_TYPING_MS_PER_CHAR=45
 ```
 
-The defaults produce an 8–25 second random reaction plus approximately 45 milliseconds per reply character, capped at 15 seconds of typing time. Changing conversations, pausing the monitor, disabling automatic sending, or losing the expected Lovense controls prevents the scheduled response from being sent.
+The defaults produce an 8–25 second random reaction plus approximately 45 milliseconds between each visibly typed character. Changing conversations, pausing the monitor, disabling automatic sending, or losing the expected Lovense controls prevents the scheduled response from being sent.
 ## Reply engines
 
 The private `config.ini` controls reply generation.
@@ -129,5 +131,7 @@ npm test
 ```
 
 Automated tests cover safe defaults, reply-provider validation, deduplication keys, existing command-policy tests, and template reply isolation. Tests do not send a real Lovense message. Live sending must be confirmed manually from the review dashboard.
+
+
 
 

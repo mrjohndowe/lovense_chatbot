@@ -72,7 +72,7 @@ function render(data) {
   autoButton.textContent = data.autoSend ? 'Disable automatic sending' : 'Enable automatic sending';
   autoButton.className = data.autoSend ? 'danger' : 'secondary';
   document.querySelector('#auto-detail').textContent = data.autoSend
-    ? `Armed — random ${Math.round(data.autoSendMinDelayMs / 1000)}–${Math.round(data.autoSendMaxDelayMs / 1000)} second reaction plus typing delay.`
+    ? `Armed — random ${Math.round(data.autoSendMinDelayMs / 1000)}–${Math.round(data.autoSendMaxDelayMs / 1000)} second reaction, visible typing, then Enter.`
     : 'Disabled — every reply requires review.';
   document.querySelector('#send-mode').textContent = data.autoSend ? 'Automatic · armed' : 'Review required';
   document.querySelector('#send-notice-title').textContent = data.autoSend ? 'Automatic sending is armed.' : 'Automatic sending is off.';
@@ -123,3 +123,4 @@ document.querySelector('#auto-send').addEventListener('click', async () => {
 });
 refresh();
 setInterval(refresh, 2500);
+

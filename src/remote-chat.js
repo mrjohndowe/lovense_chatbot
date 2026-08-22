@@ -55,10 +55,10 @@ export class RemoteChatBridge {
     if (!pending) return;
     this.pending.delete(payload.id);
     if (payload.error) pending.reject(new Error(payload.error.message || 'Lovense inspection failed.'));
-    else pending.resolve(payload.result?.result?.value);
+    else pending.resolve(payload.result);
   }
 
-  async evaluate(expression) {
+  async command(method, params = {}) {
     await this.connect();
     const id = this.nextId++;
     return new Promise((resolve, reject) => {
@@ -70,8 +70,13 @@ export class RemoteChatBridge {
         resolve: value => { clearTimeout(timeout); resolve(value); },
         reject: error => { clearTimeout(timeout); reject(error); }
       });
-      this.socket.send(JSON.stringify({ id, method: 'Runtime.evaluate', params: { expression, returnByValue: true } }));
+      this.socket.send(JSON.stringify({ id, method, params }));
     });
+  }
+
+  async evaluate(expression) {
+    const result = await this.command('Runtime.evaluate', { expression, returnByValue: true });
+    return result?.result?.value;
   }
 
   async snapshot() {
@@ -128,4 +133,44 @@ export class RemoteChatBridge {
     })()`);
     if (!result?.ok) throw new Error(result?.error || 'Could not send the Lovense reply.');
   }
+  async typeAndSend(text, expectedConversation, delayMsPerCharacter = 45, shouldContinue = () => true) {
+    const reply = clean(text);
+    if (!reply) throw new Error('Reply cannot be empty.');
+    const expected = clean(expectedConversation);
+    const prepared = await this.evaluate(`(()=>{
+      const expected=${JSON.stringify(expected)};
+      const title=String(document.querySelector('header .header-title span.header-title')?.innerText||'').replace(/\\s+/g,' ').trim();
+      if(title!==expected)return {ok:false,error:'The selected Lovense conversation changed.'};
+      const editor=document.querySelector('.w-e-text[contenteditable=true]');
+      if(!editor)return {ok:false,error:'The Lovense message editor is unavailable.'};
+      editor.focus();
+      editor.textContent='';
+      editor.dispatchEvent(new InputEvent('input',{bubbles:true,inputType:'deleteContentBackward',data:null}));
+      return {ok:true};
+    })()`);
+    if (!prepared?.ok) throw new Error(prepared?.error || 'Could not prepare the Lovense editor.');
+
+    for (const character of Array.from(reply)) {
+      if (!shouldContinue()) throw new Error('Automatic sending was cancelled while typing.');
+      await this.command('Input.insertText', { text: character });
+      if (delayMsPerCharacter > 0) await new Promise(resolve => setTimeout(resolve, delayMsPerCharacter));
+    }
+
+    if (!shouldContinue()) throw new Error('Automatic sending was cancelled before Enter was pressed.');
+    const ready = await this.evaluate(`(()=>{
+      const expected=${JSON.stringify(expected)};
+      const title=String(document.querySelector('header .header-title span.header-title')?.innerText||'').replace(/\\s+/g,' ').trim();
+      const editor=document.querySelector('.w-e-text[contenteditable=true]');
+      if(title!==expected)return {ok:false,error:'The selected Lovense conversation changed.'};
+      if(!editor||!String(editor.innerText||'').trim())return {ok:false,error:'The Lovense draft is empty or unavailable.'};
+      editor.focus();
+      return {ok:true};
+    })()`);
+    if (!ready?.ok) throw new Error(ready?.error || 'Could not send the Lovense reply.');
+    const key = { key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 };
+    await this.command('Input.dispatchKeyEvent', { type: 'keyDown', ...key });
+    await this.command('Input.dispatchKeyEvent', { type: 'keyUp', ...key });
+  }
 }
+
+

@@ -75,9 +75,7 @@ function publicState() {
 
 function humanDelayMs(reply, random = Math.random) {
   const reactionRange = config.autoSendMaxDelayMs - config.autoSendMinDelayMs;
-  const reactionDelay = config.autoSendMinDelayMs + Math.floor(random() * (reactionRange + 1));
-  const typingDelay = Math.min(String(reply || '').length * config.autoSendTypingMsPerChar, 15_000);
-  return reactionDelay + typingDelay;
+  return config.autoSendMinDelayMs + Math.floor(random() * (reactionRange + 1));
 }
 function clearAutoTimer(id) {
   const timeout = autoTimers.get(id);
@@ -96,8 +94,12 @@ function scheduleAuto(item) {
     item.scheduledFor = null;
     if (!autoSend || !watching || item.status !== 'waiting') return;
     try {
-      await bridge.fillDraft(item.reply, item.conversation);
-      await bridge.send(item.conversation);
+      await bridge.typeAndSend(
+        item.reply,
+        item.conversation,
+        config.autoSendTypingMsPerChar,
+        () => autoSend && watching && item.status === 'waiting'
+      );
       item.status = 'sent';
       item.sentAt = new Date().toISOString();
     } catch (error) {
@@ -203,8 +205,12 @@ async function api(request, response, pathname) {
       if (!item) return json(response, 404, { error: 'Review item was not found.' });
       item.reply = String(body.reply || '').trim().slice(0, config.maxReplyChars);
       clearAutoTimer(item.id);
-      await bridge.fillDraft(item.reply, item.conversation);
-      await bridge.send(item.conversation);
+      await bridge.typeAndSend(
+        item.reply,
+        item.conversation,
+        config.autoSendTypingMsPerChar,
+        () => autoSend && watching && item.status === 'waiting'
+      );
       item.status = 'sent';
       item.sentAt = new Date().toISOString();
       return json(response, 200, { item });
@@ -256,3 +262,4 @@ process.on('SIGINT', () => {
   stopWatching();
   server.close(() => process.exit(0));
 });
+

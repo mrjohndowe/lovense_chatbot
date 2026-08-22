@@ -13,6 +13,37 @@
       <div><span class="eyebrow">PRIVATE CONTROL CONSOLE</span><h1>Lovense Chatbot</h1></div>
       <div id="status" class="status"><span></span> Connecting</div>
     </header>
+    <nav class="tabs" aria-label="Console sections">
+      <button type="button" class="tab active" data-panel="control">Control</button>
+      <button type="button" class="tab" data-panel="integrations">Integrations</button>
+      <button type="button" class="tab" data-panel="activity">Activity</button>
+    </nav>
+    <section id="integrations" class="panel hidden">
+      <div class="panel-heading"><div><span class="eyebrow">CONNECTIONS</span><h2>Platform options</h2></div><button type="button" class="secondary" id="refresh">Refresh</button></div>
+      <div id="platform-grid" class="platform-grid"></div>
+      <div class="admin-card">
+        <h3>Lovense QR pairing</h3>
+        <p>Generate a four-hour pairing code after enabling pairing in your environment configuration.</p>
+        <button type="button" id="pair">Generate QR code</button>
+        <div id="pairing-result" class="pairing-result"></div>
+      </div>
+      <div class="admin-card">
+        <h3>Consent management</h3>
+        <p>Only allowlisted external accounts can be granted consent.</p>
+        <div class="consent-form">
+          <select id="consent-platform" aria-label="Platform"><option>discord</option><option>twitch</option><option>chaturbate</option></select>
+          <input id="consent-user" placeholder="Platform user ID or username">
+          <select id="consent-enabled" aria-label="Consent state"><option value="true">Grant</option><option value="false">Revoke</option></select>
+          <button type="button" id="save-consent">Apply</button>
+        </div>
+        <div id="consent-list" class="chips"></div>
+      </div>
+    </section>
+    <section id="activity" class="panel hidden">
+      <div class="panel-heading"><div><span class="eyebrow">AUDIT</span><h2>Recent activity</h2></div><button type="button" class="secondary" id="refresh-audit">Refresh</button></div>
+      <div id="audit-list" class="audit-list"><p class="muted">No activity recorded in this process yet.</p></div>
+    </section>
+    <div id="control" class="control-panel">
     <section id="messages" class="messages" aria-live="polite">
       <article class="message bot"><div class="avatar">L</div><div><strong>Lovense Bot</strong><p>Ready. I only respond to explicit slash commands. Use <code>/help</code> to begin.</p></div></article>
     </section>
@@ -25,6 +56,7 @@
       </div>
       <p class="hint">Emergency stop: <button class="link" id="stop" type="button">send /stop</button></p>
     </form>
+    </div>
   </main>
   <script src="/app.js" type="module"></script>
 </body>

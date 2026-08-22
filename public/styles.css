@@ -28,4 +28,30 @@ button:hover { background: #ff77ad; }
 .hint { margin: 9px 0 0; color: #9d8995; font-size: .76rem; }
 .link { padding: 0; background: transparent; color: #ff77ad; }
 code { color: #ff9fc6; }
+.tabs { display: flex; gap: 6px; padding: 10px 26px; border-bottom: 1px solid #382832; }
+.tab, .secondary { padding: 8px 13px; color: #beaeb7; background: transparent; border: 1px solid transparent; }
+.tab.active { color: white; background: #35242e; border-color: #583847; }
+.control-panel { min-height: 0; display: grid; grid-template-rows: 1fr auto; overflow: hidden; }
+.panel { min-height: 0; overflow-y: auto; padding: 24px 26px; }
+.hidden { display: none !important; }
+.panel-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+h2, h3 { margin: 4px 0 8px; }
+h2 { font-size: 1.25rem; }
+h3 { font-size: .95rem; }
+.platform-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin-bottom: 16px; }
+.platform-card, .admin-card { padding: 16px; border: 1px solid #49313e; border-radius: 14px; background: #211920; }
+.platform-card p, .admin-card p { margin: 5px 0 12px; color: #ad9ca6; font-size: .8rem; line-height: 1.4; }
+.badge { display: inline-block; padding: 4px 8px; border-radius: 99px; background: #44323b; color: #c8b7c0; font-size: .68rem; font-weight: 800; text-transform: uppercase; }
+.badge.good { color: #72e0a8; background: #173a2b; }
+.admin-card { margin-top: 12px; }
+.admin-card button { min-height: 38px; }
+.pairing-result img { display: block; max-width: 220px; margin-top: 14px; border-radius: 10px; }
+.consent-form { display: grid; grid-template-columns: 130px 1fr 100px auto; gap: 8px; }
+select { border: 1px solid #513744; border-radius: 10px; padding: 9px; background: #211920; color: white; }
+.chips { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 12px; }
+.chip { padding: 6px 9px; border-radius: 99px; background: #342630; font-size: .72rem; }
+.audit-row { display: grid; grid-template-columns: 150px 100px 1fr 90px; gap: 10px; padding: 11px 4px; border-bottom: 1px solid #382832; font-size: .8rem; }
+.muted { color: #9d8995; }
+.secondary { border-color: #513744; }
 @media (max-width: 600px) { body { padding: 0; } .app { height: 100vh; border: 0; border-radius: 0; } header, .messages, form { padding-left: 16px; padding-right: 16px; } .status { font-size: 0; } }
+@media (max-width: 600px) { .tabs, .panel { padding-left: 16px; padding-right: 16px; } .consent-form { grid-template-columns: 1fr; } .audit-row { grid-template-columns: 1fr 1fr; } }

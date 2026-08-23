@@ -28,10 +28,11 @@ test('automatic send rechecks the conversation and clicks the Lovense Send contr
       const request = JSON.parse(raw);
       requests.push(request);
       if (request.params.expression) evaluatedExpression = request.params.expression;
-      if (request.method === 'Input.dispatchMouseEvent' && request.params.type === 'mouseReleased') sent = true;
-      const value = request.params.expression?.includes('getBoundingClientRect')
-        ? (sent ? { ok: true, sent: true } : { ok: true, sent: false, x: 700, y: 500 })
-        : { ok: true };
+      let value = { ok: true };
+      if (request.params.expression?.includes('send.click()')) {
+        value = sent ? { ok: true, sent: true } : { ok: true, sent: false, clicked: true };
+        sent = true;
+      }
       queueMicrotask(() => this.emit('message', { data: JSON.stringify({ id: request.id, result: { result: { value } } }) }));
     }
     close() {
@@ -47,8 +48,8 @@ test('automatic send rechecks the conversation and clicks the Lovense Send contr
   await bridge.send('Selected conversation');
   const initialEvaluated = requests.filter(request => request.method === 'Runtime.evaluate').map(request => request.params.expression).join(' ');
   assert.match(initialEvaluated, /title!==expected/);
-  assert.match(initialEvaluated, /getBoundingClientRect/);
-  assert.deepEqual(requests.filter(request => request.method === 'Input.dispatchMouseEvent').map(request => request.params.type), ['mouseMoved', 'mousePressed', 'mouseReleased']);
+  assert.match(initialEvaluated, /send\.click\(\)/);
+  assert.equal(requests.some(request => request.method === 'Input.dispatchMouseEvent'), false);
 
 
   requests.length = 0;
@@ -63,8 +64,8 @@ test('automatic send rechecks the conversation and clicks the Lovense Send contr
   assert.deepEqual(keyRequests.map(request => request.params.type), ['rawKeyDown', 'keyUp']);
   assert.ok(keyRequests.every(request => request.params.key === 'Enter' && request.params.windowsVirtualKeyCode === 13));
   const evaluated = requests.filter(request => request.method === 'Runtime.evaluate').map(request => request.params.expression).join(' ');
-  assert.match(evaluated, /getBoundingClientRect/);
-  assert.deepEqual(requests.filter(request => request.method === 'Input.dispatchMouseEvent').map(request => request.params.type), ['mouseMoved', 'mousePressed', 'mouseReleased']);
+  assert.match(evaluated, /send\.click\(\)/);
+  assert.equal(requests.some(request => request.method === 'Input.dispatchMouseEvent'), false);
   assert.equal(requests.some(request => request.method === 'Page.bringToFront' || request.method === 'Target.activateTarget'), false);
 });
 test('targets the separate Live Control renderer and validates a bounded slider command', async () => {

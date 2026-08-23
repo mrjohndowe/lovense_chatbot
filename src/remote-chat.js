@@ -201,16 +201,14 @@ export class RemoteChatBridge {
         const send=document.querySelector('.send');
         if(!editor||!send)return {ok:false,error:'The Lovense editor or Send control is unavailable.'};
         if(!String(editor.innerText||'').trim())return {ok:true,sent:true};
-        const rect=send.getBoundingClientRect();
-        if(rect.width<=0||rect.height<=0)return {ok:false,error:'The Lovense Send control is not visible.'};
-        return {ok:true,sent:false,x:rect.left+rect.width/2,y:rect.top+rect.height/2};
+        // Lovense's older Electron renderer can ignore synthetic mouse events.
+        // Invoke its own Send handler, then let the bounded loop verify the draft cleared.
+        send.click();
+        return {ok:true,sent:false,clicked:true};
       })()`);
       if (!target?.ok) throw new Error(target?.error || 'Could not locate the Lovense Send control.');
       if (target.sent) return;
 
-      await this.command('Input.dispatchMouseEvent', { type: 'mouseMoved', x: target.x, y: target.y, button: 'none' });
-      await this.command('Input.dispatchMouseEvent', { type: 'mousePressed', x: target.x, y: target.y, button: 'left', clickCount: 1 });
-      await this.command('Input.dispatchMouseEvent', { type: 'mouseReleased', x: target.x, y: target.y, button: 'left', clickCount: 1 });
       await new Promise(resolve => setTimeout(resolve, 500));
     }
 

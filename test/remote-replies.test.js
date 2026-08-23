@@ -40,7 +40,7 @@ test('message fingerprints separate conversations and repeated positions', () =>
 test('template mode generates bounded replies without a network call', async () => {
   const config = loadRemoteConfig({ MAX_REPLY_CHARS: '80' });
   const reply = await generateReply(config, 'Hello there', () => { throw new Error('network must not be used'); });
-  assert.match(reply, /^Hey!/);
+  assert.match(reply, /^(Hey|Hi)/);
   assert.ok(reply.length <= 80);
 });
 test('local template mode answers configured identity questions', async () => {
@@ -79,8 +79,8 @@ test('uses conversation history to vary natural follow-up questions', async () =
   const config = loadRemoteConfig({});
   const first = await generateReply(config, 'That happened yesterday', globalThis.fetch, { history: [] });
   const later = await generateReply(config, 'That happened yesterday', globalThis.fetch, { history: [{ role: 'user', content: 'Earlier message' }] });
-  assert.match(first, /Tell me more/);
-  assert.match(later, /How do you feel/);
+  assert.match(first, /stuck with you|happened next|feel|processing/i);
+  assert.match(later, /stuck with you|happened next|feel|processing/i);
   assert.notEqual(first, later);
 });
 
@@ -113,6 +113,52 @@ test('uses the preceding assistant turn to clarify what it meant', async () => {
   const reply = await generateReply(config, 'what do you mean?', globalThis.fetch, { history: [
     { role: 'assistant', content: 'Tell me a little more about what you mean.' }
   ] });
-  assert.match(reply, /wanted to hear more/);
+  assert.match(reply, /interested|wanted more|hear more/);
   assert.doesNotMatch(reply, /Ask me nicely/);
 });
+
+test('expanded template covers everyday topics with relevant follow-ups', async () => {
+  const config = loadRemoteConfig({});
+  const cases = [
+    ['I had a rough day at work', /work|productive|people/i],
+    ['I am cooking dinner', /having|cooking|comfort food/i],
+    ['I found a new song', /listening|song|music/i],
+    ['I am watching a movie', /watching|shows|good/i],
+    ['I am going to the gym', /workout|motivated|go/i],
+    ['I feel stressed', /weighing|vent|smaller piece/i],
+    ['I am exhausted', /worn out|gentle|flattered/i]
+  ];
+  for (const [message, expected] of cases) {
+    const reply = await generateReply(config, message);
+    assert.match(reply, expected, message);
+  }
+});
+
+test('expanded template prioritizes boundaries over playful language', async () => {
+  const config = loadRemoteConfig({});
+  const reply = await generateReply(config, 'Stop, this is too much and I am not comfortable');
+  assert.match(reply, /stop|boundary|slow down/i);
+  assert.doesNotMatch(reply, /teas|dominant|attention/i);
+});
+
+test('expanded template asks for consent and limits around remote toy control', async () => {
+  const config = loadRemoteConfig({});
+  assert.match(await generateReply(config, 'Take control of my toy'), /boundar|comfortable|stop|avoid/i);
+  assert.match(await generateReply(config, 'Be dominant and tell me what to do'), /consent|boundar|off-limits|avoid/i);
+});
+
+test('expanded template responds naturally to compliments and affection', async () => {
+  const config = loadRemoteConfig({});
+  assert.match(await generateReply(config, 'You are really cute'), /compliment|charming|attention/i);
+  assert.match(await generateReply(config, 'I miss you'), /mind|missed|catch me up/i);
+});
+
+test('expanded template uses configured facts and does not invent missing ones', async () => {
+  const configured = loadRemoteConfig({ CHAT_LOCATION: 'Denver, Colorado', CHAT_OCCUPATION: 'I am a developer' });
+  assert.match(await generateReply(configured, 'Where do you live?'), /Denver, Colorado/);
+  assert.match(await generateReply(configured, 'What do you do for work?'), /developer/);
+  const empty = loadRemoteConfig({});
+  assert.match(await generateReply(empty, 'Where do you live?'), /haven’t filled/i);
+});
+
+

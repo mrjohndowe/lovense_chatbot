@@ -1,3 +1,5 @@
+import { expandedTemplateReply } from './template-responder.js';
+
 function compact(value, maxLength) {
   const text = String(value || '').replace(/\s+/g, ' ').trim();
   if (!text) throw new Error('The reply service returned an empty response.');
@@ -58,7 +60,7 @@ async function requestJson(url, options, fetchImpl) {
 
 export async function generateReply(config, message, fetchImpl = globalThis.fetch, options = {}) {
   const history = Array.isArray(options.history) ? options.history.slice(-config.conversationMemoryMessages) : [];
-  if (config.replyProvider === 'template') return compact(templateReply(config, message, history), config.maxReplyChars);
+  if (config.replyProvider === 'template') return compact(expandedTemplateReply(config, message, history), config.maxReplyChars);
   const includeHistory = config.replyProvider === 'ollama' || config.sendMemoryToOpenAI;
   const messages = [{ role: 'system', content: config.replySystemPrompt }, ...(includeHistory ? history : []), { role: 'user', content: String(message || '') }];
   if (config.replyProvider === 'ollama') {
@@ -95,3 +97,4 @@ export function createReplyDeduper(historyLimit = 100) {
     return result;
   };
 }
+

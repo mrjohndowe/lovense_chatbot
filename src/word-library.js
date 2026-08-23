@@ -2,13 +2,13 @@
 // These are ingredients, not complete canned chat replies.
 export const WORD_LIBRARY = Object.freeze({
   openers: Object.freeze({
-    neutral: ['Honestly', 'Okay', 'Interesting', 'I hear you', 'That makes sense', 'Now I am curious', 'I can understand that', 'Fair enough', 'Tell me this', 'Let me think'],
+    neutral: ['Yeah', 'Okay', 'Hmm', 'I get that', 'Makes sense', 'Fair enough', 'Really', 'I can see that', 'Gotcha', 'Right'],
     warm: ['Aw', 'I like hearing that', 'That made me smile', 'I am glad you told me', 'You have my attention', 'That sounds lovely', 'I appreciate the honesty', 'I am listening', 'I like that', 'Good to know'],
     flirty: ['Well now', 'Careful', 'Look at you', 'That is tempting', 'You are distracting me', 'I see what you are doing', 'You are bold', 'Now you have my attention', 'That was smooth', 'Mmm'],
     dominant: ['Good', 'Listen carefully', 'Stay focused', 'Slow down', 'Use your words', 'Be direct', 'Hold that thought', 'Pay attention', 'Take a breath', 'Do not rush']
   }),
   reactions: Object.freeze({
-    neutral: ['that sounds important', 'there is more to that', 'that gives me a clearer picture', 'I can see why it is on your mind', 'that is worth talking about', 'I want to understand the details', 'that sounds like a real moment', 'your perspective interests me'],
+    neutral: ['that makes sense', 'I get what you mean', 'I can see why', 'that sounds complicated', 'that is interesting', 'I would notice that too', 'you may be right', 'that explains a lot'],
     positive: ['your excitement is contagious', 'that energy suits you', 'you sound genuinely happy', 'that sounds like a win', 'I love the enthusiasm', 'you have every reason to smile', 'that is wonderful to hear', 'the good mood comes through'],
     supportive: ['that sounds like a lot to carry', 'you do not have to handle it alone', 'your feelings make sense', 'that must be exhausting', 'you deserve a gentler moment', 'I am not judging you', 'it is okay to take this slowly', 'you can be honest with me'],
     flirty: ['that confidence looks good on you', 'you know how to create tension', 'you are becoming a favorite distraction', 'that playful side is attractive', 'you make curiosity feel dangerous', 'you know exactly how to get a reaction', 'your timing is very good', 'I like where this energy is going'],
@@ -30,7 +30,7 @@ export const WORD_LIBRARY = Object.freeze({
   topics: Object.freeze({
     greeting: { subjects: ['your day', 'your mood', 'what you are doing', 'your evening', 'what brought you here'], questions: ['how has your day been', 'what are you up to', 'what kind of mood are you in', 'what is on your mind', 'how is your evening going'] },
     wellbeing: { subjects: ['how you are feeling', 'your energy today', 'what has been on your mind', 'the kind of day you had', 'what you need tonight'], questions: ['how are you feeling honestly', 'what was the best part of your day', 'has today been kind to you', 'what would improve your mood', 'what is taking most of your energy'] },
-    work: { subjects: ['your day at work', 'the people you work with', 'your job', 'what you accomplished', 'the hardest part of your shift'], questions: ['what happened at work', 'whether the work or the people were harder', 'what you accomplished today', 'what would make your job easier', 'how you unwind after a long shift'] },
+    work: { subjects: ['your day at work', 'the people you work with', 'your job', 'what you accomplished', 'the hardest part of your shift'], questions: ['what happened at work', 'whether the work or the people were harder', 'what happened at work today', 'what would make your job easier', 'how you unwind after a long shift'] },
     food: { subjects: ['what you are cooking', 'your favorite meal', 'the food you are craving', 'your comfort food', 'what you ate today'], questions: ['what you are having', 'whether you are cooking or ordering', 'what your favorite comfort food is', 'which flavor you crave most', 'what meal you never get tired of'] },
     music: { subjects: ['your current playlist', 'the song in your head', 'your favorite artist', 'the music matching your mood', 'your best concert memory'], questions: ['what you have on repeat', 'which song matches your mood', 'whether lyrics or rhythm matter more', 'who you want to see live', 'what song always changes your mood'] },
     entertainment: { subjects: ['what you are watching', 'your favorite kind of story', 'the character you like', 'your latest series', 'your comfort movie'], questions: ['what you are watching', 'whether it is actually good', 'which character you like most', 'what you can watch repeatedly', 'what belongs next on the watch list'] },

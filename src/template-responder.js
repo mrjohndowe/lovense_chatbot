@@ -59,6 +59,30 @@ export function expandedTemplateReply(config, message, history = []) {
   }
   if (/\b(you didn'?t answer|answer my question|that makes no sense|you make no sense)\b/i.test(text)) return 'You’re right—I missed the point. Ask it once more and I’ll answer it directly.';
 
+  // Keep ordinary story threads grounded in what the person actually said.
+  // These run before broad topic/fallback rules so a detail such as "demeanor"
+  // continues the existing discussion instead of starting a generic new one.
+  if (/\b(she|he|they) (?:isn'?t|is not|ain'?t|won'?t|will not) coming back\b/i.test(text)) {
+    return choose([
+      'Yeah, it sounds like she may have made up her mind. What gave you that feeling?',
+      'You might be right. Did something happen before she left?',
+      'That sounds pretty final. Are you okay with her not coming back?'
+    ]);
+  }
+  if (/\b(demeanou?r|attitude|behavior|body language|the way (?:she|he|they) acted)\b/i.test(text)) {
+    if (/\b(she|her)\b/i.test(priorUser) || /\bshe\b/i.test(text)) return choose([
+      'I get that. Was she acting distant, upset, or just completely done?',
+      'Yeah, sometimes you can tell from how someone carries herself. Was she unusually cold?',
+      'That can say a lot. Did she seem angry, or more like she had already checked out?'
+    ]);
+    if (/\b(he|him)\b/i.test(priorUser) || /\bhe\b/i.test(text)) return choose([
+      'I get that. Was he acting distant, upset, or just completely done?',
+      'Yeah, sometimes you can tell from how someone carries himself. Was he unusually cold?',
+      'That can say a lot. Did he seem angry, or more like he had already checked out?'
+    ]);
+    return choose(['I get that. What was different about the way they were acting?', 'Yeah, body language can say a lot. Did they seem upset or just distant?', 'That can be telling. What did you notice?']);
+  }
+
   // Greetings and casual shorthand.
   if (/\b(good morning|morning)\b/i.test(text)) return choose(['Good morning. How did you sleep?', 'Morning, you. What kind of day are you expecting?', 'Good morning 😊 What’s first on your agenda?']);
   if (/\b(good night|night night|going to bed|headed to bed)\b/i.test(text)) return choose(['Good night. Sleep well.', 'Rest well. What was the best part of your day?', 'Sweet dreams. I enjoyed talking with you tonight.']);
@@ -130,7 +154,7 @@ export function expandedTemplateReply(config, message, history = []) {
 
   // Statement fallbacks still reflect the incoming message.
   if (/\b(yesterday|today|earlier|last night|this morning)\b/i.test(text)) return choose(['That sounds like it stuck with you. What happened next?', 'How do you feel about it now?', 'Was that the best part of the day or the part you’re still processing?']);
-  if (text.length < 12) return choose(['Tell me a little more—I’m listening.', 'Go on. What’s behind that?', 'You have my attention. Give me the rest of the thought.']);
+  if (text.length < 12) return choose(['What happened?', 'How come?', 'Really?', 'Go on.', 'What do you mean?']);
   return compose('general');
 }
 

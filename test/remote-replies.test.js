@@ -124,6 +124,26 @@ test('uses conversation history to vary natural follow-up questions', async () =
   assert.notEqual(first, later);
 });
 
+test('continues a story about someone leaving with a direct natural reply', async () => {
+  const config = loadRemoteConfig({});
+  const first = await generateReply(config, "yea that I think she isn't coming back", globalThis.fetch, { history: [] });
+  assert.match(first, /made up her mind|before she left|not coming back/i);
+  assert.doesNotMatch(first, /perspective interests|real moment|walk me through/i);
+
+  const followup = await generateReply(config, 'nothing its just her demeanor', globalThis.fetch, { history: [
+    { role: 'user', content: "yea that I think she isn't coming back" },
+    { role: 'assistant', content: first }
+  ] });
+  assert.match(followup, /acting distant|carries herself|checked out/i);
+  assert.doesNotMatch(followup, /perspective interests|real moment|say more/i);
+});
+
+test('neutral composed replies stay concise and conversational', async () => {
+  const reply = await generateReply(loadRemoteConfig({}), 'There is something I have been thinking about');
+  assert.ok(reply.split(/[.!?]+/).filter(Boolean).length <= 2);
+  assert.doesNotMatch(reply, /perspective interests|real moment|I want to learn more/i);
+});
+
 test('does not send prior memory to OpenAI unless explicitly enabled', async () => {
   let requestBody;
   const fetchImpl = async (_url, options) => {
@@ -161,7 +181,7 @@ test('expanded template covers everyday topics with relevant follow-ups', async 
   const config = loadRemoteConfig({});
   const cases = [
     ['I had a rough day at work', /work|productive|people/i],
-    ['I am cooking dinner', /having|cooking|comfort food/i],
+    ['I am cooking dinner', /having|cooking|comfort food|flavor/i],
     ['I found a new song', /listening|song|music|concert|repeat/i],
     ['I am watching a movie', /watching|watch|shows|movie|character|good/i],
     ['I am going to the gym', /workout|motivated|go/i],

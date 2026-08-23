@@ -43,12 +43,15 @@ export function composeLocalSentence({ intent = 'general', message = '', history
     return punctuate(opener + ', ' + reaction) + ' ' + punctuate('There is something ' + adjective + ' about ' + subject) + ' ' + punctuate(transition + ', ' + lead + ' ' + question, '?');
   }
 
+  const promptLead = pick(['Tell me ', 'Can you tell me ', "I'm curious about "], seed, 11);
+  const naturalQuestion = punctuate(promptLead + question, promptLead === 'Can you tell me ' ? '?' : '.');
+  const naturalReaction = punctuate(reaction[0].toUpperCase() + reaction.slice(1));
   switch (pattern) {
-    case 0: return punctuate(opener) + ' ' + punctuate('When it comes to ' + subject + ', ' + reaction) + ' ' + punctuate(lead[0].toUpperCase() + lead.slice(1) + ' ' + question, '?');
-    case 1: return punctuate(opener) + ' ' + punctuate('Something about ' + subject + ' sounds ' + pick(words.adjectives, seed, 8)) + ' ' + punctuate(transition + ', ' + lead + ' ' + question, '?');
-    case 2: return punctuate(reaction[0].toUpperCase() + reaction.slice(1)) + ' ' + punctuate('I want to ' + pick(['hear', 'learn', 'understand', 'know', 'discover'], seed, 9) + ' more about ' + subject) + ' ' + punctuate(lead[0].toUpperCase() + lead.slice(1) + ' ' + question, '?');
-    case 3: return punctuate(opener + ', ' + reaction) + ' ' + punctuate(transition + ', ' + closer) + ' ' + punctuate(lead[0].toUpperCase() + lead.slice(1) + ' ' + question, '?');
-    default: return punctuate(opener) + ' ' + punctuate('The ' + pick(words.adjectives, seed, 10) + ' part is ' + subject) + ' ' + punctuate(lead[0].toUpperCase() + lead.slice(1) + ' ' + question, '?');
+    case 0: return punctuate(opener) + ' ' + naturalQuestion;
+    case 1: return naturalReaction + ' ' + naturalQuestion;
+    case 2: return naturalQuestion;
+    case 3: return punctuate(opener + ', ' + reaction) + ' ' + naturalQuestion;
+    default: return punctuate(opener) + ' ' + punctuate(closer[0].toUpperCase() + closer.slice(1));
   }
 }
 

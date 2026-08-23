@@ -40,17 +40,24 @@ test('automatic send rechecks the conversation and clicks the Lovense Send contr
   });
   const bridge = new RemoteChatBridge({ fetchImpl, WebSocketImpl: FakeWebSocket });
   await bridge.send('Selected conversation');
-  assert.match(evaluatedExpression, /title!==expected/);
-  assert.match(evaluatedExpression, /send\.click\(\)/);
+  const initialEvaluated = requests.filter(request => request.method === 'Runtime.evaluate').map(request => request.params.expression).join(' ');
+  assert.match(initialEvaluated, /title!==expected/);
+  assert.match(initialEvaluated, /send\.click\(\)/);
+  assert.match(initialEvaluated, /draft after Enter and Send were attempted/);
 
   requests.length = 0;
   await bridge.typeAndSend('Hi', 'Selected conversation', 0);
-  const inputRequests = requests.filter(request => request.method.startsWith('Input.'));
+  const inputRequests = requests.filter(request => request.method === 'Input.insertText');
   assert.deepEqual(inputRequests.map(request => [request.method, request.params.text]), [
     ['Input.insertText', 'H'],
     ['Input.insertText', 'i']
   ]);
-  assert.match(evaluatedExpression, /send\.click\(\)/);
+  const keyRequests = requests.filter(request => request.method === 'Input.dispatchKeyEvent');
+  assert.deepEqual(keyRequests.map(request => request.params.type), ['rawKeyDown', 'keyUp']);
+  assert.ok(keyRequests.every(request => request.params.key === 'Enter' && request.params.windowsVirtualKeyCode === 13));
+  const evaluated = requests.filter(request => request.method === 'Runtime.evaluate').map(request => request.params.expression).join(' ');
+  assert.match(evaluated, /send\.click\(\)/);
+  assert.match(evaluated, /draft after Enter and Send were attempted/);
   assert.equal(requests.some(request => request.method === 'Page.bringToFront' || request.method === 'Target.activateTarget'), false);
 });
 test('targets the separate Live Control renderer and validates a bounded slider command', async () => {

@@ -133,17 +133,48 @@ export class RemoteChatBridge {
   }
 
   async send(expectedConversation) {
-    const result = await this.evaluate(`(()=>{
-      const expected=${JSON.stringify(clean(expectedConversation))};
+    const expected = clean(expectedConversation);
+
+    // Dispatch a genuine Enter key through DevTools so Lovense receives the same
+    // keyboard events it receives from a person typing in the editor.
+    const key = {
+      key: 'Enter',
+      code: 'Enter',
+      windowsVirtualKeyCode: 13,
+      nativeVirtualKeyCode: 13
+    };
+    await this.command('Input.dispatchKeyEvent', { type: 'rawKeyDown', ...key });
+    await this.command('Input.dispatchKeyEvent', { type: 'keyUp', ...key });
+    await new Promise(resolve => setTimeout(resolve, 150));
+
+    // Some Lovense builds do not bind Enter to send. In that case, activate the
+    // visible Send control with the full pointer/mouse sequence.
+    const attempted = await this.evaluate(`(()=>{
+      const expected=${JSON.stringify(expected)};
       const title=String(document.querySelector('header .header-title span.header-title')?.innerText||'').replace(/\\s+/g,' ').trim();
       if(title!==expected)return {ok:false,error:'The selected Lovense conversation changed.'};
       const editor=document.querySelector('.w-e-text[contenteditable=true]');
       const send=document.querySelector('.send');
-      if(!editor||!send||!String(editor.innerText||'').trim())return {ok:false,error:'The Lovense draft is empty or unavailable.'};
-      send.click();
+      if(!editor||!send)return {ok:false,error:'The Lovense editor or Send control is unavailable.'};
+      if(String(editor.innerText||'').trim()){
+        for(const type of ['pointerdown','mousedown','pointerup','mouseup'])send.dispatchEvent(new MouseEvent(type,{bubbles:true,cancelable:true,view:window,button:0}));
+        send.click();
+      }
       return {ok:true};
     })()`);
-    if (!result?.ok) throw new Error(result?.error || 'Could not send the Lovense reply.');
+    if (!attempted?.ok) throw new Error(attempted?.error || 'Could not activate the Lovense Send control.');
+
+    await new Promise(resolve => setTimeout(resolve, 250));
+    const verified = await this.evaluate(`(()=>{
+      const expected=${JSON.stringify(expected)};
+      const title=String(document.querySelector('header .header-title span.header-title')?.innerText||'').replace(/\\s+/g,' ').trim();
+      const editor=document.querySelector('.w-e-text[contenteditable=true]');
+      if(title!==expected)return {ok:false,error:'The selected Lovense conversation changed.'};
+      if(!editor)return {ok:false,error:'The Lovense message editor is unavailable.'};
+      if(String(editor.innerText||'').trim())return {ok:false,error:'Lovense left the reply in the draft after Enter and Send were attempted.'};
+      return {ok:true};
+    })()`);
+    if (!verified?.ok) throw new Error(verified?.error || 'Lovense did not confirm that the reply was sent.');
   }
   async typeAndSend(text, expectedConversation, delayMsPerCharacter = 45, shouldContinue = () => true) {
     const reply = clean(text);

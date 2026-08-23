@@ -1,14 +1,29 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { DOMINANT_RESPONSES, FLIRTY_RESPONSES, TEMPLATE_RESPONSE_COUNT, TEMPLATE_RESPONSE_LIBRARY } from '../src/template-library.js';
+import { WORD_LIBRARY } from '../src/word-library.js';
+import { composeLocalSentence, LOCAL_SENTENCE_COMBINATIONS } from '../src/sentence-composer.js';
 
-test('offline library has 200 distinct responses including 50 dominant and 50 flirty replies', () => {
-  const responses = Object.values(TEMPLATE_RESPONSE_LIBRARY).flat();
-  assert.equal(TEMPLATE_RESPONSE_COUNT, responses.length);
-  assert.ok(responses.length >= 200);
-  assert.ok(DOMINANT_RESPONSES.length >= 50);
-  assert.ok(FLIRTY_RESPONSES.length >= 50);
-  assert.equal(new Set(responses).size, responses.length);
+test('offline word library supports a large grammar-aware response space', () => {
+  const topLevelWords = Object.entries(WORD_LIBRARY)
+    .filter(([key]) => key !== 'topics')
+    .flatMap(([, value]) => Array.isArray(value) ? value : Object.values(value).flat());
+  const topicWords = Object.values(WORD_LIBRARY.topics).flatMap(topic => [...topic.subjects, ...topic.questions]);
+  assert.ok(topLevelWords.length + topicWords.length >= 250);
+  assert.ok(LOCAL_SENTENCE_COMBINATIONS >= 1_000_000);
+
+  const samples = new Set();
+  for (const intent of Object.keys(WORD_LIBRARY.topics)) {
+    for (let turn = 0; turn < 8; turn += 1) {
+      samples.add(composeLocalSentence({
+        intent,
+        tone: intent === 'dating' ? 'flirty' : 'neutral',
+        message: 'Tell me about this',
+        history: Array.from({ length: turn }, (_, index) => ({ role: 'user', content: 'turn ' + index }))
+      }));
+    }
+  }
+  assert.ok(samples.size >= 100);
+  assert.ok([...samples].every(reply => /^[A-Z]/.test(reply) && /[.!?]$/.test(reply)));
 });
 import { loadRemoteConfig } from '../src/remote-config.js';
 import { fingerprint } from '../src/remote-chat.js';
@@ -50,7 +65,7 @@ test('message fingerprints separate conversations and repeated positions', () =>
 test('template mode generates bounded replies without a network call', async () => {
   const config = loadRemoteConfig({ MAX_REPLY_CHARS: '80' });
   const reply = await generateReply(config, 'Hello there', () => { throw new Error('network must not be used'); });
-  assert.match(reply, /^(Hey|Hi)/);
+  assert.match(reply, /day|mood|doing|mind|brought/i);
   assert.ok(reply.length <= 80);
 });
 test('local template mode answers configured identity questions', async () => {
@@ -132,8 +147,8 @@ test('expanded template covers everyday topics with relevant follow-ups', async 
   const cases = [
     ['I had a rough day at work', /work|productive|people/i],
     ['I am cooking dinner', /having|cooking|comfort food/i],
-    ['I found a new song', /listening|song|music/i],
-    ['I am watching a movie', /watching|shows|good/i],
+    ['I found a new song', /listening|song|music|concert|repeat/i],
+    ['I am watching a movie', /watching|watch|shows|movie|character|good/i],
     ['I am going to the gym', /workout|motivated|go/i],
     ['I feel stressed', /weighing|vent|smaller piece/i],
     ['I am exhausted', /worn out|gentle|flattered/i]
@@ -154,7 +169,7 @@ test('expanded template prioritizes boundaries over playful language', async () 
 test('expanded template asks for consent and limits around remote toy control', async () => {
   const config = loadRemoteConfig({});
   assert.match(await generateReply(config, 'Take control of my toy'), /boundar|comfortable|stop|avoid/i);
-  assert.match(await generateReply(config, 'Be dominant and tell me what to do'), /consent|boundar|off-limits|avoid/i);
+  assert.match(await generateReply(config, 'Be dominant and tell me what to do'), /consent|boundar|comfortable|off-limits|avoid/i);
 });
 
 test('expanded template responds naturally to compliments and affection', async () => {

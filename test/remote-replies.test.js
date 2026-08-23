@@ -1,5 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { DOMINANT_RESPONSES, FLIRTY_RESPONSES, TEMPLATE_RESPONSE_COUNT, TEMPLATE_RESPONSE_LIBRARY } from '../src/template-library.js';
+
+test('offline library has 200 distinct responses including 50 dominant and 50 flirty replies', () => {
+  const responses = Object.values(TEMPLATE_RESPONSE_LIBRARY).flat();
+  assert.equal(TEMPLATE_RESPONSE_COUNT, responses.length);
+  assert.ok(responses.length >= 200);
+  assert.ok(DOMINANT_RESPONSES.length >= 50);
+  assert.ok(FLIRTY_RESPONSES.length >= 50);
+  assert.equal(new Set(responses).size, responses.length);
+});
 import { loadRemoteConfig } from '../src/remote-config.js';
 import { fingerprint } from '../src/remote-chat.js';
 import { createReplyDeduper, generateReply } from '../src/replies.js';

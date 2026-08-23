@@ -1,3 +1,5 @@
+import { TEMPLATE_RESPONSE_LIBRARY as library } from './template-library.js';
+
 function clean(value) {
   return String(value || '').replace(/\s+/g, ' ').trim();
 }
@@ -58,14 +60,14 @@ export function expandedTemplateReply(config, message, history = []) {
   // Greetings and casual shorthand.
   if (/\b(good morning|morning)\b/i.test(text)) return choose(['Good morning. How did you sleep?', 'Morning, you. What kind of day are you expecting?', 'Good morning 😊 What’s first on your agenda?']);
   if (/\b(good night|night night|going to bed|headed to bed)\b/i.test(text)) return choose(['Good night. Sleep well.', 'Rest well. What was the best part of your day?', 'Sweet dreams. I enjoyed talking with you tonight.']);
-  if (/^(hi|hey|hello|hiya|yo)\b/i.test(text)) return choose(['Hey! How has your day been?', 'Hi there. What are you up to?', 'Hey, you 😊 What’s going on?']);
+  if (/^(hi|hey|hello|hiya|yo)\b/i.test(text)) return choose(library.greeting);
   if (/\b(hbu|how about you|how bout you)\b/i.test(text)) return choose(["I’m doing pretty well—just enjoying the conversation. What does a perfect chill evening look like for you?", "I’m good, taking it easy and getting to know you. What are you doing while you relax?", "I’m in a good mood. You’ve got my attention—what’s on your mind?"]);
-  if (/\b(how are you|how(?:’|'| a)?re you|how you doing)\b/i.test(text)) return choose(["I’m doing well. How are you feeling, honestly?", 'Pretty good. What has your day been like?', 'I’m good—and curious about you. What kind of mood are you in?']);
+  if (/\b(how are you|how(?:’|'| a)?re you|how you doing)\b/i.test(text)) return choose(library.wellbeing);
   if (/\b(wyd|what are you doing|whatcha doing|what are you up to)\b/i.test(text)) return choose(["I’m relaxing and talking with you. What are you getting into?", 'Just taking it easy and enjoying our conversation. What about you?', 'Right now? Giving you my attention. What are you doing?']);
 
   // Emotional context.
   const emotionRules = [
-    [/\b(i'?m|i am|i feel|feeling) (sad|down|upset|hurt|depressed)\b/i, ["I’m sorry you’re dealing with that. Do you want to talk about what happened or just have company?", 'That sounds heavy. What part is hitting you hardest?', 'Would listening or distracting you help more right now?']],
+    [/\b(i'?m|i am|i feel|feeling) (sad|down|upset|hurt|depressed)\b/i, library.support],
     [/\b(i'?m|i am|i feel|feeling) (stressed|overwhelmed|anxious|worried)\b/i, ['That sounds like a lot. What’s weighing on you most?', 'Do you want to vent, problem-solve, or change the subject?', 'What can we break into one smaller piece?']],
     [/\b(i'?m|i am|i feel|feeling) (tired|exhausted|sleepy)\b/i, ['You sound worn out. Long day or bad sleep?', 'Be gentle with yourself tonight. What kept you busy?', 'Tired but still talking to me—I’m a little flattered.']],
     [/\b(i'?m|i am|i feel|feeling) (bored|lonely)\b/i, ['Then let’s fix that. Real conversation, playful questions, or teasing?', 'I can keep you company. Tell me something people rarely ask about.', 'You have my attention. What would make tonight interesting?']],
@@ -75,13 +77,13 @@ export function expandedTemplateReply(config, message, history = []) {
 
   // Everyday subjects produce related follow-ups.
   const topicRules = [
-    [/\b(work|job|boss|coworker|shift|office)\b/i, ['How has work been treating you?', 'Was today productive, exhausting, or both?', 'Was the problem the work or the people?']],
-    [/\b(dinner|lunch|breakfast|food|hungry|cooking|eat|eating)\b/i, ['What are you having?', 'Are you cooking or ordering something?', 'What’s your favorite comfort food?']],
-    [/\b(music|song|playlist|band|singer|concert)\b/i, ['What have you been listening to on repeat?', 'Give me one song that matches your mood.', 'What music can completely change your mood?']],
-    [/\b(movie|movies|show|series|watching|netflix|tv)\b/i, ['Is it actually good or just background noise?', 'What are you watching?', 'What kind of shows pull you in fastest?']],
-    [/\b(game|gaming|xbox|playstation|pc game|nintendo)\b/i, ['What are you playing lately?', 'Are you competitive or mostly there to relax?', 'What game can steal an entire evening?']],
+    [/\b(work|job|boss|coworker|shift|office)\b/i, library.work],
+    [/\b(dinner|lunch|breakfast|food|hungry|cooking|eat|eating)\b/i, library.food],
+    [/\b(music|song|playlist|band|singer|concert)\b/i, library.music],
+    [/\b(movie|movies|show|series|watching|netflix|tv)\b/i, library.entertainment],
+    [/\b(game|gaming|xbox|playstation|pc game|nintendo)\b/i, library.games],
     [/\b(gym|workout|exercise|running|hike|hiking)\b/i, ['How did it go—accomplished or exhausted?', 'What workouts do you actually enjoy?', 'What keeps you motivated?']],
-    [/\b(weekend|tonight|tomorrow|plans|vacation|trip|travel)\b/i, ['What are you hoping to do?', 'Is that a firm plan or a see-where-it-goes situation?', 'What would make those plans really fun?']],
+    [/\b(weekend|tonight|tomorrow|plans|vacation|trip|travel)\b/i, library.plans],
     [/\b(weather|rain|raining|snow|cold|hot outside|sunny)\b/i, ['Do you enjoy that kind of weather?', 'Is it stay-inside weather there?', 'What do you like doing in weather like that?']]
   ];
   for (const [pattern, replies] of topicRules) if (pattern.test(text)) return choose(replies);
@@ -91,9 +93,9 @@ export function expandedTemplateReply(config, message, history = []) {
   if (/\byou(?:’re|'re| are) (?:really |so |very )?(cute|sweet|beautiful|handsome|hot|sexy|amazing)\b/i.test(text)) return choose(['Careful, compliments might work on me. What made you say that?', 'Thank you—you’re pretty charming yourself.', 'Keep talking like that and you’ll have all my attention 😉']);
   if (/\b(i like you|i love you|have a crush on you)\b/i.test(text)) return choose(['I like the connection too. What made you realize it?', 'That’s sweet and a little bold. What do you like most?', 'I’m enjoying you too. Let’s keep getting to know each other.']);
   if (/\b(send (?:me )?(?:a )?(?:pic|picture|photo)|show me (?:your|a)|video call|call me)\b/i.test(text)) return choose(['Maybe later. For now, tell me what you’re curious about.', 'I’d rather keep talking here for now. What were you hoping for?', 'Slow down—you don’t get everything at once. Get to know me first 😉']);
-  if (/\b(be dominant|dominate me|control me|tell me what to do|take control)\b/i.test(text)) return choose(['Only if that’s genuinely what you want. Tell me your boundaries first.', 'We can be playful, but consent comes first. What is off-limits?', 'Start by communicating clearly: what do you enjoy and what should I avoid?']);
+  if (/\b(be dominant|dominate me|control me|tell me what to do|take control)\b/i.test(text)) return choose(library.dominant);
   if (/\b(toy|vibe|vibrator|live control|slider)\b/i.test(text)) return choose(['Tell me what intensity is comfortable and what your stop signal is.', 'We can make that playful, but I want clear boundaries first.', 'Tell me what feels good, what doesn’t, and when to stop.']);
-  if (/\b(kiss|cuddle|snuggle|flirt|tease)\b/i.test(text)) return choose(['I could be persuaded. Which one are you asking for? 😉', 'Come closer and tell me what kind of mood you’re in.', 'A little affection and a little tension—I can work with that.']);
+  if (/\b(kiss|cuddle|snuggle|flirt|tease)\b/i.test(text)) return choose(library.flirty);
   if (/\b(horny|turned on|naughty|dirty talk)\b/i.test(text)) return choose(['I can be playful, but tell me the mood and boundaries first.', 'Do you want teasing conversation or something more direct?', 'Use your words—what kind of attention are you asking for?']);
 
   // Acknowledgements and laughter maintain continuity.
@@ -111,7 +113,7 @@ export function expandedTemplateReply(config, message, history = []) {
   // Statement fallbacks still reflect the incoming message.
   if (/\b(yesterday|today|earlier|last night|this morning)\b/i.test(text)) return choose(['That sounds like it stuck with you. What happened next?', 'How do you feel about it now?', 'Was that the best part of the day or the part you’re still processing?']);
   if (text.length < 12) return choose(['Tell me a little more—I’m listening.', 'Go on. What’s behind that?', 'You have my attention. Give me the rest of the thought.']);
-  return choose(['I’m listening. What part matters most to you?', 'That gives me a better picture. How did you feel about it?', 'Tell me more—what happened next?', 'I can see why that’s on your mind. What do you want to happen?', 'That’s interesting. What made you bring it up?']);
+  return choose(library.general);
 }
 
 

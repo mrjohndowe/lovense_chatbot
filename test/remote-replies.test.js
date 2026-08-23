@@ -97,3 +97,22 @@ test('does not send prior memory to OpenAI unless explicitly enabled', async () 
   assert.equal(requestBody.messages.some(item => item.content === 'private earlier message'), true);
 });
 
+
+test('answers casual reciprocal questions instead of using a generic question reply', async () => {
+  const config = loadRemoteConfig({});
+  const reply = await generateReply(config, 'Just chilling, hbu?', globalThis.fetch, { history: [
+    { role: 'user', content: 'hey' },
+    { role: 'assistant', content: 'Hi there. What are you up to today?' }
+  ] });
+  assert.match(reply, /I’m (doing pretty good|good)/);
+  assert.doesNotMatch(reply, /Tell me a little more|Ask me nicely/);
+});
+
+test('uses the preceding assistant turn to clarify what it meant', async () => {
+  const config = loadRemoteConfig({});
+  const reply = await generateReply(config, 'what do you mean?', globalThis.fetch, { history: [
+    { role: 'assistant', content: 'Tell me a little more about what you mean.' }
+  ] });
+  assert.match(reply, /wanted to hear more/);
+  assert.doesNotMatch(reply, /Ask me nicely/);
+});

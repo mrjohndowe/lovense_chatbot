@@ -8,7 +8,7 @@ This project does not use the Lovense developer API, pairing callbacks, Cloudfla
 
 - Reads only the conversation currently open in Lovense Remote.
 - Distinguishes incoming `.left .friend-msg` entries from outgoing `.right` entries.
-- Ignores images, patterns, toy requests, notices, and other non-text entries.
+- Ignores images, patterns, toy requests, notices, mobile-only `[vowgameinvitecard]` game invitations, and other non-text entries.
 - Marks all visible history as already seen when monitoring starts or you switch conversations.
 - Queues only genuinely new incoming text for review.
 - Supports explicit opt-in automatic sending with a randomized reaction and reply-length typing delay.
@@ -136,6 +136,7 @@ npm test
 ```
 
 Automated tests cover safe defaults, reply-provider validation, deduplication keys, existing command-policy tests, and template reply isolation. Tests do not send a real Lovense message. Live sending must be confirmed manually from the review dashboard.
+
 
 
 

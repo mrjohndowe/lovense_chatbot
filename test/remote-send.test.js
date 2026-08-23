@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { RemoteChatBridge } from '../src/remote-chat.js';
+import { classifyRemoteMessage, RemoteChatBridge } from '../src/remote-chat.js';
 
 test('automatic send rechecks the conversation and clicks the Lovense Send control', async () => {
   let evaluatedExpression = '';
@@ -46,14 +46,11 @@ test('automatic send rechecks the conversation and clicks the Lovense Send contr
   requests.length = 0;
   await bridge.typeAndSend('Hi', 'Selected conversation', 0);
   const inputRequests = requests.filter(request => request.method.startsWith('Input.'));
-  assert.deepEqual(inputRequests.map(request => [request.method, request.params.text || request.params.type]), [
+  assert.deepEqual(inputRequests.map(request => [request.method, request.params.text]), [
     ['Input.insertText', 'H'],
-    ['Input.insertText', 'i'],
-    ['Input.dispatchKeyEvent', 'keyDown'],
-    ['Input.dispatchKeyEvent', 'keyUp']
+    ['Input.insertText', 'i']
   ]);
-  assert.equal(inputRequests.at(-2).params.key, 'Enter');
-  assert.equal(inputRequests.at(-1).params.key, 'Enter');
+  assert.match(evaluatedExpression, /send\.click\(\)/);
   assert.equal(requests.some(request => request.method === 'Page.bringToFront' || request.method === 'Target.activateTarget'), false);
 });
 test('targets the separate Live Control renderer and validates a bounded slider command', async () => {
@@ -95,3 +92,11 @@ test('targets the separate Live Control renderer and validates a bounded slider 
   assert.match(expression, /vm\.rotateChange\(value\)/);
 });
 
+
+
+test('classifies the mobile-only Vow game invitation as non-replyable', () => {
+  assert.equal(classifyRemoteMessage('[vowgameinvitecard]'), 'mobile-game-card');
+  assert.equal(classifyRemoteMessage('  [VowGameInviteCard]  '), 'mobile-game-card');
+  assert.equal(classifyRemoteMessage('Want to play? [vowgameinvitecard]'), 'mobile-game-card');
+  assert.equal(classifyRemoteMessage('Want to play a game?'), 'text');
+});

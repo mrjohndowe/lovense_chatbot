@@ -6,6 +6,11 @@ function clean(value) {
   return String(value || '').replace(/\s+/g, ' ').trim();
 }
 
+export function classifyRemoteMessage(text, fallbackType = 'text') {
+  if (fallbackType !== 'text') return fallbackType;
+  return /\[vowgameinvitecard\]/i.test(clean(text)) ? 'mobile-game-card' : 'text';
+}
+
 export function fingerprint(conversation, message) {
   return createHash('sha256').update(`${conversation}\0${message}`).digest('hex');
 }
@@ -99,7 +104,10 @@ export class RemoteChatBridge {
     if (!value?.ready) throw new Error('Open a Lovense Remote chat conversation so its title, messages, and editor are visible.');
     return {
       conversation: clean(value.conversation),
-      messages: (value.messages || []).map(item => ({ ...item, text: clean(item.text) }))
+      messages: (value.messages || []).map(item => {
+        const text = clean(item.text);
+        return { ...item, text, type: classifyRemoteMessage(text, item.type) };
+      })
     };
   }
 
@@ -171,9 +179,7 @@ export class RemoteChatBridge {
       return {ok:true};
     })()`);
     if (!ready?.ok) throw new Error(ready?.error || 'Could not send the Lovense reply.');
-    const key = { key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 };
-    await this.command('Input.dispatchKeyEvent', { type: 'keyDown', ...key });
-    await this.command('Input.dispatchKeyEvent', { type: 'keyUp', ...key });
+    await this.send(expected);
   }
   async toySnapshot() {
     const result = await this.evaluate(`(()=>{
@@ -232,6 +238,7 @@ export class RemoteChatBridge {
     return results;
   }
 }
+
 
 
 

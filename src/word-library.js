@@ -10,7 +10,7 @@ export const WORD_LIBRARY = Object.freeze({
   reactions: Object.freeze({
     neutral: ['that makes sense', 'I get what you mean', 'I can see why', 'that sounds complicated', 'that is interesting', 'I would notice that too', 'you may be right', 'that explains a lot'],
     positive: ['your excitement is contagious', 'that energy suits you', 'you sound genuinely happy', 'that sounds like a win', 'I love the enthusiasm', 'you have every reason to smile', 'that is wonderful to hear', 'the good mood comes through'],
-    supportive: ['that sounds like a lot to carry', 'you do not have to handle it alone', 'your feelings make sense', 'that must be exhausting', 'you deserve a gentler moment', 'I am not judging you', 'it is okay to take this slowly', 'you can be honest with me'],
+    supportive: ['ugh, that sucks', 'damn, that is rough', 'I am sorry you are dealing with that', 'yeah, that is a lot', 'I would be annoyed too', 'that is messed up', 'no wonder you are tired', 'I get why that bothered you'],
     flirty: ['that confidence looks good on you', 'you know how to create tension', 'you are becoming a favorite distraction', 'that playful side is attractive', 'you make curiosity feel dangerous', 'you know exactly how to get a reaction', 'your timing is very good', 'I like where this energy is going'],
     dominant: ['clear communication comes first', 'I expect an honest answer', 'confidence works best with discipline', 'the pace stays deliberate', 'your comfort still controls the limit', 'I want your full attention', 'we establish boundaries before intensity', 'a direct answer earns a direct response']
   }),
@@ -25,7 +25,7 @@ export const WORD_LIBRARY = Object.freeze({
   questionLeads: ['tell me', 'help me understand', 'be honest about', 'describe', 'say more about', 'walk me through', 'give me the real answer about', 'let me know', 'think about', 'start with'],
   adjectives: ['interesting', 'unexpected', 'exciting', 'complicated', 'comforting', 'intense', 'sweet', 'playful', 'meaningful', 'memorable', 'challenging', 'relaxing', 'personal', 'honest', 'bold', 'thoughtful'],
   verbs: ['enjoy', 'notice', 'remember', 'want', 'prefer', 'appreciate', 'imagine', 'choose', 'explore', 'understand', 'value', 'expect', 'feel', 'consider', 'share', 'miss'],
-  closers: ['I want the honest version', 'take your time answering', 'details make this more interesting', 'I am listening', 'you can be specific', 'do not overthink it', 'start wherever feels natural', 'I want to hear your side'],
+  closers: ['yeah, I get it', 'that tracks', 'fair enough', 'no kidding', 'that is wild', 'makes sense to me', 'I can see that', 'I would probably think the same'],
   consent: ['name your boundaries first', 'tell me what feels comfortable', 'choose a clear stop signal', 'say what I should avoid', 'give me clear consent before we continue', 'set a comfortable pace that feels right', 'tell me your hard limits', 'remember your stop signal can pause this at any time'],
   topics: Object.freeze({
     greeting: { subjects: ['your day', 'your mood', 'what you are doing', 'your evening', 'what brought you here'], questions: ['how has your day been', 'what are you up to', 'what kind of mood are you in', 'what is on your mind', 'how is your evening going'] },

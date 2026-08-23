@@ -87,28 +87,28 @@ export function expandedTemplateReply(config, message, history = []) {
   if (/\b(good morning|morning)\b/i.test(text)) return choose(['Good morning. How did you sleep?', 'Morning, you. What kind of day are you expecting?', 'Good morning 😊 What’s first on your agenda?']);
   if (/\b(good night|night night|going to bed|headed to bed)\b/i.test(text)) return choose(['Good night. Sleep well.', 'Rest well. What was the best part of your day?', 'Sweet dreams. I enjoyed talking with you tonight.']);
   if (/^(hi|hey|hello|hiya|yo)[!.? ]*$/i.test(text)) return choose(words.shortReplies.greeting);
-  if (/^(hi|hey|hello|hiya|yo)\b/i.test(text)) return compose('greeting', 'warm');
+  if (/^(hi|hey|hello|hiya|yo)\b/i.test(text)) return choose(['Hey, how is your day going?', 'Hi, what are you up to?', 'Hey there. How are you?', 'Hi! What is going on?']);
   if (/\b(hbu|how about you|how bout you)\b/i.test(text)) return choose(["I’m doing pretty well—just enjoying the conversation. What does a perfect chill evening look like for you?", "I’m good, taking it easy and getting to know you. What are you doing while you relax?", "I’m in a good mood. You’ve got my attention—what’s on your mind?"]);
   if (/\b(how are you|how(?:’|'| a)?re you|how you doing)\b/i.test(text)) return compose('wellbeing', 'warm');
   if (/\b(wyd|what are you doing|whatcha doing|what are you up to)\b/i.test(text)) return choose(["I’m relaxing and talking with you. What are you getting into?", 'Just taking it easy and enjoying our conversation. What about you?', 'Right now? Giving you my attention. What are you doing?']);
 
   // Emotional context.
   const emotionRules = [
-    [/\b(i'?m|i am|i feel|feeling) (sad|down|upset|hurt|depressed)\b/i, [compose('general', 'supportive')]],
-    [/\b(i'?m|i am|i feel|feeling) (stressed|overwhelmed|anxious|worried)\b/i, ['That sounds like a lot. What’s weighing on you most?', 'Do you want to vent, problem-solve, or change the subject?', 'What can we break into one smaller piece?']],
-    [/\b(i'?m|i am|i feel|feeling) (tired|exhausted|sleepy)\b/i, ['You sound worn out. Long day or bad sleep?', 'Be gentle with yourself tonight. What kept you busy?', 'Tired but still talking to me—I’m a little flattered.']],
-    [/\b(i'?m|i am|i feel|feeling) (bored|lonely)\b/i, ['Then let’s fix that. Real conversation, playful questions, or teasing?', 'I can keep you company. Tell me something people rarely ask about.', 'You have my attention. What would make tonight interesting?']],
+    [/\b(i'?m|i am|i feel|feeling) (sad|down|upset|hurt|depressed)\b/i, ['Aw damn, that sucks.', "I'm sorry. Want to talk about it or get distracted?", "Ugh, I'm sorry you're dealing with that."]],
+    [/\b(i'?m|i am|i feel|feeling) (stressed|overwhelmed|anxious|worried)\b/i, ["Ugh, that's rough.", 'Damn. Work stuff or personal?', 'Yeah, I hate days like that.']],
+    [/\b(i'?m|i am|i feel|feeling) (tired|exhausted|sleepy)\b/i, ['Same kind of tired where you could sleep all day?', 'Ugh, long day?', 'Go get some rest, sleepyhead.']],
+    [/\b(i'?m|i am|i feel|feeling) (bored|lonely)\b/i, ['Same. What are you doing right now?', 'Well, you found me.', 'Want to talk, flirt, or just be random?']],
     [/\b(i'?m|i am|i feel|feeling) (happy|great|good|excited|amazing)\b/i, ['I like hearing that. What happened?', 'Good—you sound energized. What are you excited about?', 'That mood looks good on you. What made your day?']]
   ];
   for (const [pattern, replies] of emotionRules) if (pattern.test(text)) return choose(replies);
 
   // Everyday subjects produce related follow-ups.
   const topicRules = [
-    [/\b(work|job|boss|coworker|shift|office)\b/i, [compose('work')]],
-    [/\b(dinner|lunch|breakfast|food|hungry|cooking|eat|eating)\b/i, [compose('food')]],
-    [/\b(music|song|playlist|band|singer|concert)\b/i, [compose('music')]],
-    [/\b(movie|movies|show|series|watching|netflix|tv)\b/i, [compose('entertainment')]],
-    [/\b(game|gaming|xbox|playstation|pc game|nintendo)\b/i, [compose('games')]],
+    [/\b(work|job|boss|coworker|shift|office)\b/i, ['Ugh, rough shift?', 'Was it the work or the people?', 'At least work is over now.']],
+    [/\b(dinner|lunch|breakfast|food|hungry|cooking|eat|eating)\b/i, ['What are you making?', 'Nice. What is for dinner?', 'Now you are making me hungry.']],
+    [/\b(music|song|playlist|band|singer|concert)\b/i, ['Oh nice, what song?', 'Is it going straight on repeat?', 'I love finding new music.']],
+    [/\b(movie|movies|show|series|watching|netflix|tv)\b/i, ['What are you watching?', 'Is the movie actually good?', 'Nice, I need a new show to watch.']],
+    [/\b(game|gaming|xbox|playstation|pc game|nintendo)\b/i, ['What are you playing?', 'Are you winning at least?', 'Nice. I can lose a whole night to a good game.']],
     [/\b(gym|workout|exercise|running|hike|hiking)\b/i, ['How did it go—accomplished or exhausted?', 'What workouts do you actually enjoy?', 'What keeps you motivated?']],
     [/\b(weekend|tonight|tomorrow|plans|vacation|trip|travel)\b/i, [compose('plans')]],
     [/\b(weather|rain|raining|snow|cold|hot outside|sunny)\b/i, ['Do you enjoy that kind of weather?', 'Is it stay-inside weather there?', 'What do you like doing in weather like that?']]
@@ -153,7 +153,7 @@ export function expandedTemplateReply(config, message, history = []) {
   if (/\?$/.test(text)) return choose(['What part of that matters most to you?', 'That depends on what you have in mind—give me a little context.', 'I’m not going to pretend I understood perfectly. Can you say a little more?']);
 
   // Statement fallbacks still reflect the incoming message.
-  if (/\b(yesterday|today|earlier|last night|this morning)\b/i.test(text)) return choose(['That sounds like it stuck with you. What happened next?', 'How do you feel about it now?', 'Was that the best part of the day or the part you’re still processing?']);
+  if (/\b(yesterday|today|earlier|last night|this morning)\b/i.test(text)) return choose(['Wow, so that was pretty recent.', "Yeah, I'd still be thinking about that too.", 'That just happened then.']);
   if (text.length < 12) return choose(['What happened?', 'How come?', 'Really?', 'Go on.', 'What do you mean?']);
   return compose('general');
 }

@@ -49,8 +49,8 @@ export function composeLocalSentence({ intent = 'general', message = '', history
   switch (pattern) {
     case 0: return punctuate(opener) + ' ' + naturalQuestion;
     case 1: return naturalReaction + ' ' + naturalQuestion;
-    case 2: return naturalQuestion;
-    case 3: return punctuate(opener + ', ' + reaction) + ' ' + naturalQuestion;
+    case 2: return punctuate(opener + ', ' + reaction);
+    case 3: return naturalQuestion;
     default: return punctuate(opener) + ' ' + punctuate(closer[0].toUpperCase() + closer.slice(1));
   }
 }

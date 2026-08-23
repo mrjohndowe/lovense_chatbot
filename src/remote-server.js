@@ -76,6 +76,7 @@ function publicState() {
     replyModel: config.replyModel,
     reviewMode: !autoSend,
     autoSend,
+    autoSwitchUnreadChats: config.autoSwitchUnreadChats,
     autoSendMinDelayMs: config.autoSendMinDelayMs,
     autoSendMaxDelayMs: config.autoSendMaxDelayMs,
     autoSendTypingMsPerChar: config.autoSendTypingMsPerChar,
@@ -205,42 +206,60 @@ function rememberConversationTurn(conversation, role, content) {
   if (history.length > config.conversationMemoryMessages) history.splice(0, history.length - config.conversationMemoryMessages);
   conversationMemories.set(conversation, history);
 }
+async function processFreshMessages(snapshot, fresh) {
+  if (!fresh.length) return;
+  const combinedMessage = fresh.map(item => item.text).join('\n');
+  const history = conversationMemories.get(snapshot.conversation) || [];
+  const generatedReply = await generateReply(config, combinedMessage, globalThis.fetch, { history });
+  const reply = dedupeReply(snapshot.conversation, generatedReply);
+  rememberConversationTurn(snapshot.conversation, 'user', combinedMessage);
+  rememberConversationTurn(snapshot.conversation, 'assistant', reply);
+  const review = {
+    id: String(nextReviewId++),
+    conversation: snapshot.conversation,
+    message: combinedMessage,
+    reply,
+    status: 'waiting',
+    createdAt: new Date().toISOString()
+  };
+  reviews.push(review);
+  scheduleAuto(review);
+  while (reviews.length > 20) reviews.shift();
+}
+
 async function scan({ baseline = false } = {}) {
   if (scanning) return;
   scanning = true;
   try {
+    let unreadTarget = null;
+    const replyInProgress = reviews.some(item => item.status === 'waiting' || item.status === 'drafted');
+    if (config.autoSwitchUnreadChats && autoSend && !replyInProgress) {
+      const unread = await bridge.unreadConversations();
+      unreadTarget = unread[0] || null;
+      if (unreadTarget && !unreadTarget.current) await bridge.openConversation(unreadTarget.conversation);
+    }
+
     const snapshot = await bridge.snapshot();
     const conversationChanged = snapshot.conversation !== activeConversation;
     activeConversation = snapshot.conversation;
     const incoming = snapshot.messages.filter(item => item.direction === 'incoming' && item.type === 'text' && item.text);
     const keyed = incoming.map(item => ({ ...item, key: fingerprint(snapshot.conversation, `${item.index}\0${item.text}`) }));
 
-    if (baseline || conversationChanged) {
+    if (unreadTarget && snapshot.conversation.toLocaleLowerCase('en-US') === unreadTarget.conversation.toLocaleLowerCase('en-US')) {
+      const fresh = keyed.slice(-Math.min(unreadTarget.unreadCount, keyed.length));
+      const freshIndexes = new Set(fresh.map(item => item.index));
+      seedConversationMemory(snapshot.conversation, snapshot.messages.filter(item => !freshIndexes.has(item.index)));
+      for (const item of keyed) seen.add(item.key);
+      await processFreshMessages(snapshot, fresh);
+    } else if (baseline || conversationChanged) {
       seedConversationMemory(snapshot.conversation, snapshot.messages);
       for (const item of keyed) seen.add(item.key);
     } else {
       const fresh = keyed.filter(item => !seen.has(item.key));
       for (const item of fresh) seen.add(item.key);
-      if (fresh.length) {
-        const combinedMessage = fresh.map(item => item.text).join('\n');
-        const history = conversationMemories.get(snapshot.conversation) || [];
-        const generatedReply = await generateReply(config, combinedMessage, globalThis.fetch, { history });
-        const reply = dedupeReply(snapshot.conversation, generatedReply);
-        rememberConversationTurn(snapshot.conversation, 'user', combinedMessage);
-        rememberConversationTurn(snapshot.conversation, 'assistant', reply);
-        const review = {
-          id: String(nextReviewId++),
-          conversation: snapshot.conversation,
-          message: combinedMessage,
-          reply,
-          status: 'waiting',
-          createdAt: new Date().toISOString()
-        };
-        reviews.push(review);
-        scheduleAuto(review);
-        while (reviews.length > 20) reviews.shift();
-      }
+      await processFreshMessages(snapshot, fresh);
     }
+
     lastScanAt = new Date().toISOString();
     lastError = '';
   } catch (error) {

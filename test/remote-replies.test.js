@@ -34,6 +34,7 @@ test('loads safe localhost review defaults', () => {
   assert.equal(config.debugUrl, 'http://127.0.0.1:9223');
   assert.equal(config.monitorEnabled, true);
   assert.equal(config.autoSend, false);
+  assert.equal(config.autoSwitchUnreadChats, true);
   assert.equal(config.autoSendMinDelayMs, 8000);
   assert.equal(config.autoSendMaxDelayMs, 25000);
   assert.equal(config.autoSendTypingMsPerChar, 45);

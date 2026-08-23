@@ -26,8 +26,11 @@ test('automatic send rechecks the conversation and clicks the Lovense Send contr
     send(raw) {
       const request = JSON.parse(raw);
       requests.push(request);
-      evaluatedExpression = request.params.expression;
-      queueMicrotask(() => this.emit('message', { data: JSON.stringify({ id: request.id, result: { result: { value: { ok: true } } } }) }));
+      if (request.params.expression) evaluatedExpression = request.params.expression;
+      const value = request.params.expression?.includes('getBoundingClientRect')
+        ? { ok: true, needsClick: true, x: 700, y: 500 }
+        : { ok: true };
+      queueMicrotask(() => this.emit('message', { data: JSON.stringify({ id: request.id, result: { result: { value } } }) }));
     }
     close() {
       this.readyState = 3;
@@ -42,7 +45,8 @@ test('automatic send rechecks the conversation and clicks the Lovense Send contr
   await bridge.send('Selected conversation');
   const initialEvaluated = requests.filter(request => request.method === 'Runtime.evaluate').map(request => request.params.expression).join(' ');
   assert.match(initialEvaluated, /title!==expected/);
-  assert.match(initialEvaluated, /send\.click\(\)/);
+  assert.match(initialEvaluated, /getBoundingClientRect/);
+  assert.deepEqual(requests.filter(request => request.method === 'Input.dispatchMouseEvent').map(request => request.params.type), ['mousePressed', 'mouseReleased']);
   assert.match(initialEvaluated, /draft after Enter and Send were attempted/);
 
   requests.length = 0;
@@ -56,7 +60,8 @@ test('automatic send rechecks the conversation and clicks the Lovense Send contr
   assert.deepEqual(keyRequests.map(request => request.params.type), ['rawKeyDown', 'keyUp']);
   assert.ok(keyRequests.every(request => request.params.key === 'Enter' && request.params.windowsVirtualKeyCode === 13));
   const evaluated = requests.filter(request => request.method === 'Runtime.evaluate').map(request => request.params.expression).join(' ');
-  assert.match(evaluated, /send\.click\(\)/);
+  assert.match(evaluated, /getBoundingClientRect/);
+  assert.deepEqual(requests.filter(request => request.method === 'Input.dispatchMouseEvent').map(request => request.params.type), ['mousePressed', 'mouseReleased']);
   assert.match(evaluated, /draft after Enter and Send were attempted/);
   assert.equal(requests.some(request => request.method === 'Page.bringToFront' || request.method === 'Target.activateTarget'), false);
 });
@@ -106,4 +111,48 @@ test('classifies the mobile-only Vow game invitation as non-replyable', () => {
   assert.equal(classifyRemoteMessage('  [VowGameInviteCard]  '), 'mobile-game-card');
   assert.equal(classifyRemoteMessage('Want to play? [vowgameinvitecard]'), 'mobile-game-card');
   assert.equal(classifyRemoteMessage('Want to play a game?'), 'text');
+});
+
+
+test('discovers unread contacts and confirms the selected conversation after switching', async () => {
+  const expressions = [];
+  class FakeWebSocket {
+    static OPEN = 1;
+    constructor() {
+      this.readyState = 0;
+      this.listeners = new Map();
+      queueMicrotask(() => { this.readyState = FakeWebSocket.OPEN; this.emit('open', {}); });
+    }
+    addEventListener(type, listener) {
+      const listeners = this.listeners.get(type) || [];
+      listeners.push(listener);
+      this.listeners.set(type, listeners);
+    }
+    emit(type, event) { for (const listener of this.listeners.get(type) || []) listener(event); }
+    send(raw) {
+      const request = JSON.parse(raw);
+      const expression = request.params.expression;
+      expressions.push(expression);
+      let value = { ok: true };
+      if (expression.includes("querySelectorAll('li.contact-lis')") && expression.includes('unreadCount')) {
+        value = [{ index: 1, conversation: 'JudeLaw ', preview: 'hey', unreadCount: 1, current: false }];
+      } else if (expression.startsWith("String(document.querySelector('header")) {
+        value = 'JudeLaw';
+      }
+      queueMicrotask(() => this.emit('message', { data: JSON.stringify({ id: request.id, result: { result: { value } } }) }));
+    }
+  }
+  const fetchImpl = async () => ({
+    ok: true,
+    json: async () => [{ type: 'page', title: 'Lovense Remote', url: 'file:///index.html', webSocketDebuggerUrl: 'ws://127.0.0.1/test' }]
+  });
+  const bridge = new RemoteChatBridge({ fetchImpl, WebSocketImpl: FakeWebSocket });
+  const unread = await bridge.unreadConversations();
+  assert.deepEqual(unread, [{ index: 1, conversation: 'JudeLaw', preview: 'hey', unreadCount: 1, current: false }]);
+  assert.equal(await bridge.openConversation('JudeLaw'), 'JudeLaw');
+  const source = expressions.join(' ');
+  assert.match(source, /message-num:not\(\.message-mute\)/);
+  assert.match(source, /nick-name/);
+  assert.match(source, /row\.click\(\)/);
+  assert.match(source, /toLocaleLowerCase/);
 });

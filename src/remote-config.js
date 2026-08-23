@@ -26,6 +26,7 @@ export function loadRemoteConfig(env = loadPersonalConfig()) {
     pollMs: integer(env.LOVENSE_REMOTE_POLL_MS, 2500, 1000, 30000),
     monitorEnabled: enabled(env.ENABLE_REMOTE_MONITOR, true),
     autoSend: enabled(env.ENABLE_AUTO_SEND, false),
+    autoSwitchUnreadChats: enabled(env.AUTO_SWITCH_UNREAD_CHATS, true),
     autoSendMinDelayMs: integer(env.AUTO_SEND_MIN_DELAY_SECONDS, 8, 2, 300) * 1000,
     autoSendMaxDelayMs: integer(env.AUTO_SEND_MAX_DELAY_SECONDS, 25, 2, 600) * 1000,
     autoSendTypingMsPerChar: integer(env.AUTO_SEND_TYPING_MS_PER_CHAR, 45, 10, 250),

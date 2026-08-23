@@ -88,6 +88,49 @@ export class RemoteChatBridge {
     return result?.result?.value;
   }
 
+  async unreadConversations() {
+    const value = await this.evaluate(`(()=>{
+      const tidy=value=>String(value||'').replace(/\\s+/g,' ').trim();
+      return [...document.querySelectorAll('li.contact-lis')].map((row,index)=>{
+        const conversation=tidy(row.querySelector('.nick-name')?.innerText);
+        const badge=row.querySelector('.message-num:not(.message-mute)');
+        const unreadCount=Number.parseInt(tidy(badge?.innerText),10);
+        const preview=tidy(row.querySelector('.last-msg')?.innerText);
+        return {index,conversation,preview,unreadCount:Number.isInteger(unreadCount)?unreadCount:0,current:row.classList.contains('current-lis')};
+      }).filter(item=>item.conversation&&item.unreadCount>0);
+    })()`);
+    return Array.isArray(value) ? value.map(item => ({
+      ...item,
+      conversation: clean(item.conversation),
+      preview: clean(item.preview),
+      unreadCount: Math.max(1, Number(item.unreadCount) || 1)
+    })) : [];
+  }
+
+  async openConversation(expectedConversation) {
+    const expected = clean(expectedConversation);
+    if (!expected) throw new Error('Conversation name cannot be empty.');
+    const selected = await this.evaluate(`(()=>{
+      const expected=${JSON.stringify(expected)};
+      const tidy=value=>String(value||'').replace(/\\s+/g,' ').trim();
+      const rows=[...document.querySelectorAll('li.contact-lis')];
+      const row=rows.find(item=>tidy(item.querySelector('.nick-name')?.innerText).toLocaleLowerCase('en-US')===expected.toLocaleLowerCase('en-US'));
+      if(!row)return {ok:false,error:'The unread Lovense conversation is no longer available.'};
+      row.scrollIntoView({block:'nearest'});
+      row.click();
+      return {ok:true};
+    })()`);
+    if (!selected?.ok) throw new Error(selected?.error || 'Could not open the unread Lovense conversation.');
+
+    const deadline = Date.now() + 4_000;
+    while (Date.now() < deadline) {
+      const title = clean(await this.evaluate(`String(document.querySelector('header .header-title span.header-title')?.innerText||'')`));
+      if (title.toLocaleLowerCase('en-US') === expected.toLocaleLowerCase('en-US')) return title;
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    throw new Error('Lovense did not finish switching to the expected conversation.');
+  }
+
   async snapshot() {
     const value = await this.evaluate(`(()=>{
       const tidy=value=>String(value||'').replace(/\\s+/g,' ').trim();
@@ -147,22 +190,25 @@ export class RemoteChatBridge {
     await this.command('Input.dispatchKeyEvent', { type: 'keyUp', ...key });
     await new Promise(resolve => setTimeout(resolve, 150));
 
-    // Some Lovense builds do not bind Enter to send. In that case, activate the
-    // visible Send control with the full pointer/mouse sequence.
-    const attempted = await this.evaluate(`(()=>{
+    // Some Lovense builds do not bind Enter to send. Locate the visible Send
+    // control and use native DevTools mouse events, which work in older Electron.
+    const target = await this.evaluate(`(()=>{
       const expected=${JSON.stringify(expected)};
       const title=String(document.querySelector('header .header-title span.header-title')?.innerText||'').replace(/\\s+/g,' ').trim();
       if(title!==expected)return {ok:false,error:'The selected Lovense conversation changed.'};
       const editor=document.querySelector('.w-e-text[contenteditable=true]');
       const send=document.querySelector('.send');
       if(!editor||!send)return {ok:false,error:'The Lovense editor or Send control is unavailable.'};
-      if(String(editor.innerText||'').trim()){
-        for(const type of ['pointerdown','mousedown','pointerup','mouseup'])send.dispatchEvent(new MouseEvent(type,{bubbles:true,cancelable:true,view:window,button:0}));
-        send.click();
-      }
-      return {ok:true};
+      if(!String(editor.innerText||'').trim())return {ok:true,needsClick:false};
+      const rect=send.getBoundingClientRect();
+      if(rect.width<=0||rect.height<=0)return {ok:false,error:'The Lovense Send control is not visible.'};
+      return {ok:true,needsClick:true,x:rect.left+rect.width/2,y:rect.top+rect.height/2};
     })()`);
-    if (!attempted?.ok) throw new Error(attempted?.error || 'Could not activate the Lovense Send control.');
+    if (!target?.ok) throw new Error(target?.error || 'Could not locate the Lovense Send control.');
+    if (target.needsClick) {
+      await this.command('Input.dispatchMouseEvent', { type: 'mousePressed', x: target.x, y: target.y, button: 'left', clickCount: 1 });
+      await this.command('Input.dispatchMouseEvent', { type: 'mouseReleased', x: target.x, y: target.y, button: 'left', clickCount: 1 });
+    }
 
     await new Promise(resolve => setTimeout(resolve, 250));
     const verified = await this.evaluate(`(()=>{

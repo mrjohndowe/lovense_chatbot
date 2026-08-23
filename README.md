@@ -6,7 +6,7 @@ This project does not use the Lovense developer API, pairing callbacks, Cloudfla
 
 ## What it does
 
-- Reads only the conversation currently open in Lovense Remote.
+- Detects visible unread-count badges and processes unread conversations one at a time.
 - Distinguishes incoming `.left .friend-msg` entries from outgoing `.right` entries.
 - Ignores images, patterns, toy requests, notices, mobile-only `[vowgameinvitecard]` game invitations, and other non-text entries.
 - Marks all visible history as already seen when monitoring starts or you switch conversations.
@@ -54,9 +54,9 @@ Keep the PowerShell window open. Press `Ctrl+C` to stop the dashboard. Lovense R
    - **Send now** — asks for confirmation, fills the editor, and clicks Lovense Send.
    - **Dismiss** — marks the suggestion as ignored.
 
-The initial version intentionally does not jump among contacts. That prevents a reply intended for one person from being entered into another conversation.
+With AUTO_SWITCH_UNREAD_CHATS enabled, the assistant opens the oldest visible unread conversation, confirms its title, processes only the unread tail of that chat, sends its reply, and then advances to the next unread contact. It never switches while another reply is waiting or being typed.
 
-Lovense Remote does not need to be the active Windows window. It may remain behind other applications while the assistant types through its local DevTools connection. Keep the intended conversation selected inside Lovense; the assistant does not activate the window or switch contacts.
+Lovense Remote does not need to be the active Windows window. It may remain behind other applications while the assistant switches among visible unread contacts and types through its local DevTools connection. Every draft and send rechecks the exact conversation title.
 
 ## Automatic sending and human-style delay
 

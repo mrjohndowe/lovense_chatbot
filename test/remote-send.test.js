@@ -5,6 +5,7 @@ import { classifyRemoteMessage, RemoteChatBridge } from '../src/remote-chat.js';
 test('automatic send rechecks the conversation and clicks the Lovense Send control', async () => {
   let evaluatedExpression = '';
   const requests = [];
+  let sent = false;
   class FakeWebSocket {
     static OPEN = 1;
     constructor() {
@@ -27,8 +28,9 @@ test('automatic send rechecks the conversation and clicks the Lovense Send contr
       const request = JSON.parse(raw);
       requests.push(request);
       if (request.params.expression) evaluatedExpression = request.params.expression;
+      if (request.method === 'Input.dispatchMouseEvent' && request.params.type === 'mouseReleased') sent = true;
       const value = request.params.expression?.includes('getBoundingClientRect')
-        ? { ok: true, needsClick: true, x: 700, y: 500 }
+        ? (sent ? { ok: true, sent: true } : { ok: true, sent: false, x: 700, y: 500 })
         : { ok: true };
       queueMicrotask(() => this.emit('message', { data: JSON.stringify({ id: request.id, result: { result: { value } } }) }));
     }
@@ -46,10 +48,11 @@ test('automatic send rechecks the conversation and clicks the Lovense Send contr
   const initialEvaluated = requests.filter(request => request.method === 'Runtime.evaluate').map(request => request.params.expression).join(' ');
   assert.match(initialEvaluated, /title!==expected/);
   assert.match(initialEvaluated, /getBoundingClientRect/);
-  assert.deepEqual(requests.filter(request => request.method === 'Input.dispatchMouseEvent').map(request => request.params.type), ['mousePressed', 'mouseReleased']);
-  assert.match(initialEvaluated, /draft after Enter and Send were attempted/);
+  assert.deepEqual(requests.filter(request => request.method === 'Input.dispatchMouseEvent').map(request => request.params.type), ['mouseMoved', 'mousePressed', 'mouseReleased']);
+
 
   requests.length = 0;
+  sent = false;
   await bridge.typeAndSend('Hi', 'Selected conversation', 0);
   const inputRequests = requests.filter(request => request.method === 'Input.insertText');
   assert.deepEqual(inputRequests.map(request => [request.method, request.params.text]), [
@@ -61,8 +64,7 @@ test('automatic send rechecks the conversation and clicks the Lovense Send contr
   assert.ok(keyRequests.every(request => request.params.key === 'Enter' && request.params.windowsVirtualKeyCode === 13));
   const evaluated = requests.filter(request => request.method === 'Runtime.evaluate').map(request => request.params.expression).join(' ');
   assert.match(evaluated, /getBoundingClientRect/);
-  assert.deepEqual(requests.filter(request => request.method === 'Input.dispatchMouseEvent').map(request => request.params.type), ['mousePressed', 'mouseReleased']);
-  assert.match(evaluated, /draft after Enter and Send were attempted/);
+  assert.deepEqual(requests.filter(request => request.method === 'Input.dispatchMouseEvent').map(request => request.params.type), ['mouseMoved', 'mousePressed', 'mouseReleased']);
   assert.equal(requests.some(request => request.method === 'Page.bringToFront' || request.method === 'Target.activateTarget'), false);
 });
 test('targets the separate Live Control renderer and validates a bounded slider command', async () => {

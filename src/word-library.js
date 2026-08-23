@@ -14,6 +14,13 @@ export const WORD_LIBRARY = Object.freeze({
     flirty: ['that confidence looks good on you', 'you know how to create tension', 'you are becoming a favorite distraction', 'that playful side is attractive', 'you make curiosity feel dangerous', 'you know exactly how to get a reaction', 'your timing is very good', 'I like where this energy is going'],
     dominant: ['clear communication comes first', 'I expect an honest answer', 'confidence works best with discipline', 'the pace stays deliberate', 'your comfort still controls the limit', 'I want your full attention', 'we establish boundaries before intensity', 'a direct answer earns a direct response']
   }),
+  shortReplies: Object.freeze({
+    greeting: ['Hi', 'Hey', 'Hello', 'Hey 😊', 'Hi, HRU?', 'HRU?', 'Hey, you', 'Hi there'],
+    thanks: ['You’re welcome', 'Anytime', 'Of course', 'No problem', 'You got it'],
+    yes: ['Okay', 'Good', 'Sounds good', 'Got it', 'All right'],
+    no: ['Okay', 'No problem', 'Fair enough', 'Got it', 'That’s okay'],
+    laughter: ['Lol', 'Haha', 'I know 😂', 'You’re funny', 'Glad you laughed']
+  }),
   transitions: ['So', 'And', 'Now', 'Then', 'Still', 'Before anything else', 'More importantly', 'For me', 'At the same time', 'With that said'],
   questionLeads: ['tell me', 'help me understand', 'be honest about', 'describe', 'say more about', 'walk me through', 'give me the real answer about', 'let me know', 'think about', 'start with'],
   adjectives: ['interesting', 'unexpected', 'exciting', 'complicated', 'comforting', 'intense', 'sweet', 'playful', 'meaningful', 'memorable', 'challenging', 'relaxing', 'personal', 'honest', 'bold', 'thoughtful'],

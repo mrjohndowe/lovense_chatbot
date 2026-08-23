@@ -69,6 +69,20 @@ test('template mode generates bounded replies without a network call', async () 
   assert.match(reply, /day|mood|doing|mind|brought/i);
   assert.ok(reply.length <= 80);
 });
+test('one-word greetings can receive simple human-style replies', async () => {
+  const config = loadRemoteConfig({});
+  const allowed = /^(Hi|Hey|Hello|Hey 😊|Hi, HRU\?|HRU\?|Hey, you|Hi there)$/;
+  const replies = [];
+  for (let turn = 0; turn < 8; turn += 1) {
+    replies.push(await generateReply(config, 'Hey', globalThis.fetch, {
+      history: Array.from({ length: turn }, (_, index) => ({ role: 'user', content: 'turn ' + index }))
+    }));
+  }
+  assert.ok(replies.every(reply => allowed.test(reply)));
+  assert.ok(new Set(replies).size >= 4);
+  assert.ok(replies.every(reply => reply.length <= 10));
+});
+
 test('local template mode answers configured identity questions', async () => {
   const config = loadRemoteConfig({
     CHAT_FIRST_NAME: 'Taylor',

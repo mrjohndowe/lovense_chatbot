@@ -1,4 +1,5 @@
 import { composeLocalSentence } from './sentence-composer.js';
+import { WORD_LIBRARY as words } from './word-library.js';
 
 function clean(value) {
   return String(value || '').replace(/\s+/g, ' ').trim();
@@ -61,6 +62,7 @@ export function expandedTemplateReply(config, message, history = []) {
   // Greetings and casual shorthand.
   if (/\b(good morning|morning)\b/i.test(text)) return choose(['Good morning. How did you sleep?', 'Morning, you. What kind of day are you expecting?', 'Good morning 😊 What’s first on your agenda?']);
   if (/\b(good night|night night|going to bed|headed to bed)\b/i.test(text)) return choose(['Good night. Sleep well.', 'Rest well. What was the best part of your day?', 'Sweet dreams. I enjoyed talking with you tonight.']);
+  if (/^(hi|hey|hello|hiya|yo)[!.? ]*$/i.test(text)) return choose(words.shortReplies.greeting);
   if (/^(hi|hey|hello|hiya|yo)\b/i.test(text)) return compose('greeting', 'warm');
   if (/\b(hbu|how about you|how bout you)\b/i.test(text)) return choose(["I’m doing pretty well—just enjoying the conversation. What does a perfect chill evening look like for you?", "I’m good, taking it easy and getting to know you. What are you doing while you relax?", "I’m in a good mood. You’ve got my attention—what’s on your mind?"]);
   if (/\b(how are you|how(?:’|'| a)?re you|how you doing)\b/i.test(text)) return compose('wellbeing', 'warm');

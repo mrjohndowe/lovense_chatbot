@@ -175,11 +175,11 @@ export class RemoteChatBridge {
     if (!result?.ok) throw new Error(result?.error || 'Could not fill the Lovense draft.');
   }
 
-  async send(expectedConversation) {
+  async send(expectedConversation, maxSendAttempts = 5) {
     const expected = clean(expectedConversation);
+    const attempts = Math.max(1, Math.min(10, Number(maxSendAttempts) || 5));
 
-    // Dispatch a genuine Enter key through DevTools so Lovense receives the same
-    // keyboard events it receives from a person typing in the editor.
+    // Try the normal keyboard path first.
     const key = {
       key: 'Enter',
       code: 'Enter',
@@ -188,36 +188,39 @@ export class RemoteChatBridge {
     };
     await this.command('Input.dispatchKeyEvent', { type: 'rawKeyDown', ...key });
     await this.command('Input.dispatchKeyEvent', { type: 'keyUp', ...key });
-    await new Promise(resolve => setTimeout(resolve, 150));
+    await new Promise(resolve => setTimeout(resolve, 250));
 
-    // Some Lovense builds do not bind Enter to send. Locate the visible Send
-    // control and use native DevTools mouse events, which work in older Electron.
-    const target = await this.evaluate(`(()=>{
-      const expected=${JSON.stringify(expected)};
-      const title=String(document.querySelector('header .header-title span.header-title')?.innerText||'').replace(/\\s+/g,' ').trim();
-      if(title!==expected)return {ok:false,error:'The selected Lovense conversation changed.'};
-      const editor=document.querySelector('.w-e-text[contenteditable=true]');
-      const send=document.querySelector('.send');
-      if(!editor||!send)return {ok:false,error:'The Lovense editor or Send control is unavailable.'};
-      if(!String(editor.innerText||'').trim())return {ok:true,needsClick:false};
-      const rect=send.getBoundingClientRect();
-      if(rect.width<=0||rect.height<=0)return {ok:false,error:'The Lovense Send control is not visible.'};
-      return {ok:true,needsClick:true,x:rect.left+rect.width/2,y:rect.top+rect.height/2};
-    })()`);
-    if (!target?.ok) throw new Error(target?.error || 'Could not locate the Lovense Send control.');
-    if (target.needsClick) {
+    for (let attempt = 1; attempt <= attempts; attempt += 1) {
+      // Recheck the exact recipient and draft before every click. If a prior
+      // attempt sent it, the empty editor ends the loop without another click.
+      const target = await this.evaluate(`(()=>{
+        const expected=${JSON.stringify(expected)};
+        const title=String(document.querySelector('header .header-title span.header-title')?.innerText||'').replace(/\\s+/g,' ').trim();
+        if(title!==expected)return {ok:false,error:'The selected Lovense conversation changed.'};
+        const editor=document.querySelector('.w-e-text[contenteditable=true]');
+        const send=document.querySelector('.send');
+        if(!editor||!send)return {ok:false,error:'The Lovense editor or Send control is unavailable.'};
+        if(!String(editor.innerText||'').trim())return {ok:true,sent:true};
+        const rect=send.getBoundingClientRect();
+        if(rect.width<=0||rect.height<=0)return {ok:false,error:'The Lovense Send control is not visible.'};
+        return {ok:true,sent:false,x:rect.left+rect.width/2,y:rect.top+rect.height/2};
+      })()`);
+      if (!target?.ok) throw new Error(target?.error || 'Could not locate the Lovense Send control.');
+      if (target.sent) return;
+
+      await this.command('Input.dispatchMouseEvent', { type: 'mouseMoved', x: target.x, y: target.y, button: 'none' });
       await this.command('Input.dispatchMouseEvent', { type: 'mousePressed', x: target.x, y: target.y, button: 'left', clickCount: 1 });
       await this.command('Input.dispatchMouseEvent', { type: 'mouseReleased', x: target.x, y: target.y, button: 'left', clickCount: 1 });
+      await new Promise(resolve => setTimeout(resolve, 500));
     }
 
-    await new Promise(resolve => setTimeout(resolve, 250));
     const verified = await this.evaluate(`(()=>{
       const expected=${JSON.stringify(expected)};
       const title=String(document.querySelector('header .header-title span.header-title')?.innerText||'').replace(/\\s+/g,' ').trim();
       const editor=document.querySelector('.w-e-text[contenteditable=true]');
       if(title!==expected)return {ok:false,error:'The selected Lovense conversation changed.'};
       if(!editor)return {ok:false,error:'The Lovense message editor is unavailable.'};
-      if(String(editor.innerText||'').trim())return {ok:false,error:'Lovense left the reply in the draft after Enter and Send were attempted.'};
+      if(String(editor.innerText||'').trim())return {ok:false,error:'Lovense left the reply in the draft after repeated Send attempts.'};
       return {ok:true};
     })()`);
     if (!verified?.ok) throw new Error(verified?.error || 'Lovense did not confirm that the reply was sent.');

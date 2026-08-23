@@ -121,6 +121,7 @@ The default persona is concise, natural, dominant, teasing, and flirty. It is re
 - The dashboard and Lovense inspection endpoint bind only to `127.0.0.1`.
 - Automatic sending is disabled by default. Enable it from the localhost dashboard or set ENABLE_AUTO_SEND=true in the private config.ini.
 - Toy controls start disabled on every server launch, accept only one detected toy during initial setup, enforce Lovense's own range and step, and disable if the accepted toy changes.
+- Random mode controls only the chat partner's toy shown in an accepted Live Control session. It starts off, uses the configured bounded intensity/speed and interval ranges, blocks manual slider changes while active, and returns every visible function to zero when Random mode is stopped, controls are disabled, the toy changes, or the session is lost.
 - Conversation memory stays in process memory and resets when the server stops. OpenAI history sharing is separately disabled by default.
 - Message text exists in process memory and the browser review page but is not written to disk by this project.
 - The review queue resets when the Node process stops.
@@ -135,6 +136,7 @@ npm test
 ```
 
 Automated tests cover safe defaults, reply-provider validation, deduplication keys, existing command-policy tests, and template reply isolation. Tests do not send a real Lovense message. Live sending must be confirmed manually from the review dashboard.
+
 
 
 

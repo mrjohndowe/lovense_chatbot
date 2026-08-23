@@ -88,15 +88,20 @@ function renderToy(toy) {
   const name = document.querySelector('#toy-name');
   const detail = document.querySelector('#toy-detail');
   const enable = document.querySelector('#toy-enable');
+  const random = document.querySelector('#toy-random');
   const stop = document.querySelector('#toy-stop');
   const functions = document.querySelector('#toy-functions');
   name.textContent = toy.available ? toy.name : 'No accepted toy session';
+  const limits = toy.randomLimits;
   detail.textContent = toy.available
-    ? `${toy.deviceType || 'Toy'}${toy.battery === null ? '' : ` · Battery ${toy.battery}%`} · ${toy.functions.length} function${toy.functions.length === 1 ? '' : 's'}`
-    : (toy.error || 'Open Live Control and wait for the other user to accept.');
+    ? `${toy.deviceType || 'Toy'}${toy.battery === null ? '' : ` · Battery ${toy.battery}%`} · ${toy.functions.length} function${toy.functions.length === 1 ? '' : 's'}${limits ? ` · Random ${limits.minLevel}–${limits.maxLevel} every ${limits.minIntervalMs / 1000}–${limits.maxIntervalMs / 1000}s` : ''}${toy.randomEnabled ? ' · RANDOM ACTIVE' : ''}`
+    : (toy.error || 'Open Live Control in the chat and wait for the other user to accept.');
   enable.disabled = !toy.available;
   enable.textContent = toy.enabled ? 'Disable toy controls' : 'Enable toy controls';
   enable.className = toy.enabled ? 'danger' : 'secondary';
+  random.disabled = !toy.available || !toy.enabled;
+  random.textContent = toy.randomEnabled ? 'Stop Random' : 'Start Random';
+  random.className = toy.randomEnabled ? 'danger' : 'secondary';
   stop.disabled = !toy.available;
   if (!toy.available || !toy.functions.length) {
     functions.replaceChildren(Object.assign(document.createElement('div'), { className: 'empty', textContent: 'No first-toy sliders detected.' }));
@@ -118,7 +123,7 @@ function renderToy(toy) {
     slider.max = String(control.max);
     slider.step = String(control.step);
     slider.value = String(control.value);
-    slider.disabled = !toy.enabled;
+    slider.disabled = !toy.enabled || toy.randomEnabled;
     slider.dataset.functionIndex = String(control.index);
     slider.addEventListener('input', () => { value.textContent = slider.value; });
     slider.addEventListener('change', async () => {
@@ -178,7 +183,12 @@ document.querySelector('#toy-enable').addEventListener('click', async () => {
   try { renderToy(await request('/api/toys/enable', { method: 'POST', body: JSON.stringify({ enabled: enabling }) })); }
   catch (error) { document.querySelector('#toy-detail').textContent = error.message; }
 });
-document.querySelector('#toy-stop').addEventListener('click', async () => {
+document.querySelector('#toy-random').addEventListener('click', async () => {
+  const enabling = !state.toy?.randomEnabled;
+  if (enabling && !window.confirm(`Start bounded random intensity/speed changes for ${state.toy?.name || "the chat partner's toy"}? Stop Random or Stop toy returns all sliders to zero.`)) return;
+  try { renderToy(await request('/api/toys/random', { method: 'POST', body: JSON.stringify({ enabled: enabling }) })); }
+  catch (error) { document.querySelector('#toy-detail').textContent = error.message; }
+});document.querySelector('#toy-stop').addEventListener('click', async () => {
   const button = document.querySelector('#toy-stop');
   button.disabled = true;
   try { renderToy(await request('/api/toys/stop', { method: 'POST', body: '{}' })); }
@@ -192,5 +202,8 @@ document.querySelector('#toy-stop').addEventListener('click', async () => {
 });
 refresh();
 setInterval(refresh, 2500);
+
+
+
 
 

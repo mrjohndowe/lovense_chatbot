@@ -6,6 +6,7 @@ import { constantTimeEqual } from './policy.js';
 import { loadRemoteConfig } from './remote-config.js';
 import { RemoteChatBridge, fingerprint } from './remote-chat.js';
 import { createReplyDeduper, generateReply } from './replies.js';
+import { chooseRandomToyControl, randomDelayMs } from './toy-random.js';
 
 const config = loadRemoteConfig();
 const bridge = new RemoteChatBridge({ debugUrl: config.debugUrl, targetUrlIncludes: '/index.html' });
@@ -25,6 +26,10 @@ let nextReviewId = 1;
 let autoSend = config.autoSend;
 let toyControlEnabled = false;
 let selectedToyId = '';
+let randomToyEnabled = false;
+let randomToyTimer = null;
+let nextRandomToyChangeAt = null;
+let lastRandomControl = null;
 const autoTimers = new Map();
 
 function json(response, status, data) {
@@ -83,6 +88,9 @@ function publicToy(toy) {
   return {
     available: true,
     enabled: toyControlEnabled,
+    randomEnabled: randomToyEnabled,
+    nextRandomChangeAt: nextRandomToyChangeAt,
+    randomLimits: { minLevel: config.toyRandomMinLevel, maxLevel: config.toyRandomMaxLevel, minIntervalMs: config.toyRandomMinIntervalMs, maxIntervalMs: config.toyRandomMaxIntervalMs },
     name: toy.name,
     deviceType: toy.deviceType,
     battery: Number.isFinite(toy.battery) ? toy.battery : null,
@@ -90,18 +98,59 @@ function publicToy(toy) {
   };
 }
 
+function clearRandomToyTimer() {
+  if (randomToyTimer) clearTimeout(randomToyTimer);
+  randomToyTimer = null;
+  nextRandomToyChangeAt = null;
+}
+
+async function stopRandomToy({ stopToy = true } = {}) {
+  randomToyEnabled = false;
+  clearRandomToyTimer();
+  lastRandomControl = null;
+  if (stopToy && selectedToyId) {
+    try { await toyBridge.stopToy(selectedToyId); } catch {}
+  }
+}
+
+function scheduleRandomToyChange() {
+  if (!randomToyEnabled || !toyControlEnabled || !selectedToyId) return;
+  const delay = randomDelayMs(config);
+  nextRandomToyChangeAt = new Date(Date.now() + delay).toISOString();
+  randomToyTimer = setTimeout(async () => {
+    randomToyTimer = null;
+    nextRandomToyChangeAt = null;
+    try {
+      const toy = await toyBridge.toySnapshot();
+      if (!randomToyEnabled || !toyControlEnabled || toy.id !== selectedToyId) {
+        await stopRandomToy();
+        return;
+      }
+      const selection = chooseRandomToyControl(toy, config, lastRandomControl);
+      await toyBridge.setToyControl(selectedToyId, selection.functionIndex, selection.value);
+      lastRandomControl = selection;
+      scheduleRandomToyChange();
+    } catch (error) {
+      lastError = `Random chat-partner toy control stopped: ${error.message}`;
+      await stopRandomToy();
+    }
+  }, delay);
+  randomToyTimer.unref();
+}
 async function toyState() {
   try {
     const toy = await toyBridge.toySnapshot();
     if (selectedToyId && selectedToyId !== toy.id) {
+      await stopRandomToy();
       toyControlEnabled = false;
       selectedToyId = '';
     }
     return publicToy(toy);
   } catch (error) {
+    await stopRandomToy();
     toyControlEnabled = false;
     selectedToyId = '';
-    return { available: false, enabled: false, error: error.message, functions: [] };
+    return { available: false, enabled: false, randomEnabled: false, error: error.message, functions: [] };
   }
 }
 function humanDelayMs(reply, random = Math.random) {
@@ -230,15 +279,14 @@ async function api(request, response, pathname) {
         toyControlEnabled = true;
         return json(response, 200, publicToy(toy));
       }
-      if (selectedToyId) {
-        try { await toyBridge.stopToy(selectedToyId); } catch {}
-      }
+      await stopRandomToy();
       toyControlEnabled = false;
       selectedToyId = '';
       return json(response, 200, await toyState());
     }
     if (request.method === 'POST' && pathname === '/api/toys/control') {
       if (!toyControlEnabled || !selectedToyId) throw new Error('Enable toy controls before changing a slider.');
+      if (randomToyEnabled) throw new Error('Stop Random mode before moving a slider manually.');
       const body = await readJson(request);
       const functionIndex = Number(body.functionIndex);
       const value = Number(body.value);
@@ -246,8 +294,24 @@ async function api(request, response, pathname) {
       await toyBridge.setToyControl(selectedToyId, functionIndex, value);
       return json(response, 200, publicToy(await toyBridge.toySnapshot()));
     }
+    if (request.method === 'POST' && pathname === '/api/toys/random') {
+      const body = await readJson(request);
+      if (body.enabled === true) {
+        if (!toyControlEnabled || !selectedToyId) throw new Error('Enable chat-partner toy controls before starting Random mode.');
+        const toy = await toyBridge.toySnapshot();
+        if (toy.id !== selectedToyId) throw new Error('The accepted Live Control session changed. Enable controls again.');
+        randomToyEnabled = true;
+        clearRandomToyTimer();
+        lastRandomControl = null;
+        scheduleRandomToyChange();
+        return json(response, 200, publicToy(toy));
+      }
+      await stopRandomToy();
+      return json(response, 200, await toyState());
+    }
     if (request.method === 'POST' && pathname === '/api/toys/stop') {
       const toy = await toyBridge.toySnapshot();
+      await stopRandomToy({ stopToy: false });
       await toyBridge.stopToy(toy.id);
       return json(response, 200, publicToy(await toyBridge.toySnapshot()));
     }
@@ -342,6 +406,9 @@ process.on('SIGINT', () => {
   stopWatching();
   server.close(() => process.exit(0));
 });
+
+
+
 
 
 

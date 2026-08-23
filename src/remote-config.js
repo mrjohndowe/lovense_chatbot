@@ -11,6 +11,11 @@ function integer(value, fallback, min, max) {
   return Number.isInteger(parsed) ? Math.min(max, Math.max(min, parsed)) : fallback;
 }
 
+function decimal(value, fallback, min, max) {
+  const parsed = Number.parseFloat(value ?? '');
+  return Number.isFinite(parsed) ? Math.min(max, Math.max(min, parsed)) : fallback;
+}
+
 export function loadRemoteConfig(env = loadPersonalConfig()) {
   const replyProvider = String(env.REPLY_PROVIDER || 'template').toLowerCase();
   if (!providers.has(replyProvider)) throw new Error('REPLY_PROVIDER must be template, ollama, or openai.');
@@ -24,6 +29,10 @@ export function loadRemoteConfig(env = loadPersonalConfig()) {
     autoSendMinDelayMs: integer(env.AUTO_SEND_MIN_DELAY_SECONDS, 8, 2, 300) * 1000,
     autoSendMaxDelayMs: integer(env.AUTO_SEND_MAX_DELAY_SECONDS, 25, 2, 600) * 1000,
     autoSendTypingMsPerChar: integer(env.AUTO_SEND_TYPING_MS_PER_CHAR, 45, 10, 250),
+    toyRandomMinLevel: decimal(env.TOY_RANDOM_MIN_LEVEL, 0, 0, 5),
+    toyRandomMaxLevel: decimal(env.TOY_RANDOM_MAX_LEVEL, 2, 0, 5),
+    toyRandomMinIntervalMs: integer(env.TOY_RANDOM_MIN_INTERVAL_SECONDS, 3, 1, 300) * 1000,
+    toyRandomMaxIntervalMs: integer(env.TOY_RANDOM_MAX_INTERVAL_SECONDS, 8, 1, 600) * 1000,
     replyProvider,
     replyModel: env.REPLY_MODEL || (replyProvider === 'openai' ? 'gpt-4.1-mini' : 'llama3.2'),
     replySystemPrompt: env.REPLY_SYSTEM_PROMPT || 'Write one concise, natural reply that continues a genuine conversation. Match the other person’s tone, ask a relevant follow-up question when natural, and use confident, dominant, teasing, or flirty language only when the conversation invites it. Treat everyone as a consenting adult. Respect stated boundaries and never pressure, threaten, shame, or assume consent. Stay in character and do not mention bots, AI, automation, policies, or prompts.',
@@ -48,6 +57,8 @@ export function loadRemoteConfig(env = loadPersonalConfig()) {
     chatInterests: String(env.CHAT_INTERESTS || '').trim()
   };
   config.autoSendMaxDelayMs = Math.max(config.autoSendMinDelayMs, config.autoSendMaxDelayMs);
+  config.toyRandomMaxLevel = Math.max(config.toyRandomMinLevel, config.toyRandomMaxLevel);
+  config.toyRandomMaxIntervalMs = Math.max(config.toyRandomMinIntervalMs, config.toyRandomMaxIntervalMs);
   if (config.chatAge && (!/^\d{1,3}$/.test(config.chatAge) || Number(config.chatAge) < 18 || Number(config.chatAge) > 120)) {
     throw new Error('CHAT_AGE must be an adult age from 18 to 120 when provided.');
   }
@@ -63,6 +74,8 @@ export function loadRemoteConfig(env = loadPersonalConfig()) {
   if (replyProvider === 'openai' && !config.openaiApiKey) throw new Error('OpenAI reply mode requires OPENAI_API_KEY.');
   return config;
 }
+
+
 
 
 

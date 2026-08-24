@@ -26,6 +26,7 @@ try {
 }
 
 Write-Host 'Lovense Remote is ready. Starting the local review dashboard...' -ForegroundColor Green
+& (Join-Path $PSScriptRoot 'open-lovense-devtools.ps1')
 npm start
 
 

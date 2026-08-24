@@ -41,6 +41,14 @@ The launcher creates `config.ini` from the fully commented, grouped example when
 
 Keep the PowerShell window open. Press `Ctrl+C` to stop the dashboard. Lovense Remote remains open.
 
+The personal launcher also opens Lovense Remote Developer Tools in the default browser. The inspector remains available while Lovense Remote is running with its local debugging port. To reopen Developer Tools at any time without restarting Lovense or the chatbot, run:
+
+```powershell
+Set-Location -LiteralPath 'G:\\.gitClones\\chatbot'
+.\\scripts\\open-lovense-devtools.ps1
+
+```
+
 `config.ini` is the primary personal configuration file. Existing `.env` files remain supported only as a fallback when `config.ini` does not exist. Regular operating-system environment variables override file values.
 
 ## Daily workflow

@@ -205,7 +205,9 @@ export class RemoteChatBridge {
     };
     await this.command('Input.dispatchKeyEvent', { type: 'rawKeyDown', ...key });
     await this.command('Input.dispatchKeyEvent', { type: 'keyUp', ...key });
-    await new Promise(resolve => setTimeout(resolve, 250));
+    // Lovense may still be handling Enter after DevTools acknowledges the key event.
+    // Let that renderer work finish before deciding whether the Send button is needed.
+    await new Promise(resolve => setTimeout(resolve, 1_200));
 
     for (let attempt = 1; attempt <= attempts; attempt += 1) {
       // Recheck the exact recipient and draft before every click. If a prior
@@ -226,7 +228,9 @@ export class RemoteChatBridge {
       if (!target?.ok) throw new Error(target?.error || 'Could not locate the Lovense Send control.');
       if (target.sent) return;
 
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // A Send click can be accepted before Lovense clears its rich-text editor.
+      // Do not click again while the first click is still being processed.
+      await new Promise(resolve => setTimeout(resolve, 1_500));
     }
 
     const verified = await this.evaluate(`(()=>{

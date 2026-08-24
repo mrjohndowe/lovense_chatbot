@@ -50,6 +50,7 @@ test('automatic send rechecks the conversation and clicks the Lovense Send contr
   assert.match(initialEvaluated, /title!==expected/);
   assert.match(initialEvaluated, /send\.click\(\)/);
   assert.equal(requests.some(request => request.method === 'Input.dispatchMouseEvent'), false);
+  assert.match(initialEvaluated, /send\.click\(\)/);
 
 
   requests.length = 0;

@@ -47,6 +47,7 @@ test('loads safe localhost review defaults', () => {
   assert.match(config.replySystemPrompt, /only when the conversation invites it/);
   assert.equal(config.conversationMemoryMessages, 24);
   assert.equal(config.sendMemoryToOpenAI, false);
+  assert.equal(config.ollamaApiKey, '');
   assert.match(config.replySystemPrompt, /consenting adult/);
 });
 
@@ -170,6 +171,31 @@ test('does not send prior memory to OpenAI unless explicitly enabled', async () 
   assert.equal(requestBody.messages.some(item => item.content === 'private earlier message'), true);
 });
 
+
+test('sends an Ollama API key as a bearer token when configured', async () => {
+  let requestUrl;
+  let requestOptions;
+  const fetchImpl = async (url, options) => {
+    requestUrl = url;
+    requestOptions = options;
+    return { ok: true, json: async () => ({ message: { content: 'Cloud reply' } }) };
+  };
+  const config = loadRemoteConfig({ REPLY_PROVIDER: 'ollama', REPLY_MODEL: 'gpt-oss:120b', OLLAMA_URL: 'https://ollama.com/', OLLAMA_API_KEY: 'ollama-test-key' });
+  assert.equal(await generateReply(config, 'Hello', fetchImpl), 'Cloud reply');
+  assert.equal(requestUrl, 'https://ollama.com/api/chat');
+  assert.equal(requestOptions.headers.authorization, 'Bearer ollama-test-key');
+  assert.equal(JSON.parse(requestOptions.body).model, 'gpt-oss:120b');
+});
+
+test('does not send an authorization header to local Ollama without a key', async () => {
+  let requestOptions;
+  const fetchImpl = async (_url, options) => {
+    requestOptions = options;
+    return { ok: true, json: async () => ({ message: { content: 'Local reply' } }) };
+  };
+  await generateReply(loadRemoteConfig({ REPLY_PROVIDER: 'ollama' }), 'Hello', fetchImpl);
+  assert.equal(requestOptions.headers.authorization, undefined);
+});
 
 test('answers casual reciprocal questions instead of using a generic question reply', async () => {
   const config = loadRemoteConfig({});

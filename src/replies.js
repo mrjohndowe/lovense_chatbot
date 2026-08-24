@@ -64,7 +64,9 @@ export async function generateReply(config, message, fetchImpl = globalThis.fetc
   const includeHistory = config.replyProvider === 'ollama' || config.sendMemoryToOpenAI;
   const messages = [{ role: 'system', content: config.replySystemPrompt }, ...(includeHistory ? history : []), { role: 'user', content: String(message || '') }];
   if (config.replyProvider === 'ollama') {
-    const body = await requestJson(`${config.ollamaUrl}/api/chat`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ model: config.replyModel, messages, stream: false }) }, fetchImpl);
+    const headers = { 'content-type': 'application/json' };
+    if (config.ollamaApiKey) headers.authorization = `Bearer ${config.ollamaApiKey}`;
+    const body = await requestJson(`${config.ollamaUrl}/api/chat`, { method: 'POST', headers, body: JSON.stringify({ model: config.replyModel, messages, stream: false }) }, fetchImpl);
     return compact(body.message?.content, config.maxReplyChars);
   }
   const body = await requestJson(`${config.openaiBaseUrl}/chat/completions`, { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${config.openaiApiKey}` }, body: JSON.stringify({ model: config.replyModel, messages, temperature: 0.7 }) }, fetchImpl);

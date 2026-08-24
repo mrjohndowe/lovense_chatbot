@@ -109,6 +109,19 @@ OLLAMA_URL=http://127.0.0.1:11434
 
 Ollama and the selected model must already be installed and running. Message text is sent only to the local Ollama server.
 
+### Ollama Cloud
+
+Direct Ollama Cloud access uses the same provider with the cloud host, a cloud model, and an Ollama API key:
+
+```ini
+REPLY_PROVIDER=ollama
+REPLY_MODEL=gpt-oss:120b
+OLLAMA_URL=https://ollama.com
+OLLAMA_API_KEY="<your Ollama API key>"
+```
+
+The key is sent in the `Authorization: Bearer` header only when `OLLAMA_API_KEY` has a value. Keep the real key only in the ignored personal `config.ini`; never add it to `config.example.ini` or commit it. Message text and conversation memory are sent to Ollama Cloud when this mode is active.
+
 ### OpenAI-compatible service
 
 ```ini

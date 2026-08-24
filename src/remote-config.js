@@ -44,6 +44,7 @@ export function loadRemoteConfig(env = loadPersonalConfig()) {
     conversationMemoryMessages: integer(env.CONVERSATION_MEMORY_MESSAGES, 24, 2, 100),
     sendMemoryToOpenAI: enabled(env.SEND_MEMORY_TO_OPENAI, false),
     ollamaUrl: String(env.OLLAMA_URL || 'http://127.0.0.1:11434').replace(/\/$/, ''),
+    ollamaApiKey: String(env.OLLAMA_API_KEY || '').trim(),
     openaiBaseUrl: String(env.OPENAI_BASE_URL || 'https://api.openai.com/v1').replace(/\/$/, ''),
     openaiApiKey: env.OPENAI_API_KEY || '',
     chatUsername: String(env.CHAT_USERNAME || '').trim(),

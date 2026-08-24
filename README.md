@@ -12,6 +12,7 @@ This project does not use the Lovense developer API, pairing callbacks, Cloudfla
 - Marks all visible history as already seen when monitoring starts or you switch conversations.
 - Queues only genuinely new incoming text for review.
 - Supports explicit opt-in automatic sending with a randomized reaction and reply-length typing delay.
+- Optionally sends one delayed follow-up when the other person still has the last visible text; it never double-messages when the bot/system text is last.
 - Lets you edit a proposed reply, place it in Lovense as an unsent draft, dismiss it, or explicitly send it.
 - Rechecks the conversation title immediately before drafting and sending.
 - Avoids repeating the same generated answer within a conversation and uses a natural callback when a provider returns duplicate text.
@@ -79,6 +80,13 @@ AUTO_SEND_TYPING_MS_PER_CHAR=45
 ```
 
 The defaults produce an 8–25 second random reaction plus approximately 45 milliseconds between each visibly typed character. Changing conversations, pausing the monitor, disabling automatic sending, or losing the expected Lovense controls prevents the scheduled response from being sent.
+
+## Periodic follow-ups
+
+Set ENABLE_PERIODIC_FOLLOW_UP=true, FOLLOW_UP_IDLE_MINUTES=15, and FOLLOW_UP_SWEEP_MINUTES=5 to inspect every visible contact in the Lovense Messages list. During a sweep, the bot opens each conversation, identifies its last actual text message, and starts or checks that message's idle timer. It restores the originally selected chat when nothing is due. If a follow-up qualifies, it stops on that verified conversation so the normal human delay, typing, and Send path can complete before another sweep.
+
+A follow-up is generated only if the exact incoming text is still last, automatic sending is enabled, monitoring is active, and no reply is already waiting or being drafted. An outgoing bot/system text as the last message always blocks the follow-up. Each unchanged incoming last message can trigger at most once per bot run. Normal unread messages take priority over periodic sweeps.
+
 ## Reply engines
 
 The private `config.ini` controls reply generation.

@@ -139,6 +139,8 @@ test('discovers unread contacts and confirms the selected conversation after swi
       let value = { ok: true };
       if (expression.includes("querySelectorAll('li.contact-lis')") && expression.includes('unreadCount')) {
         value = [{ index: 1, conversation: 'JudeLaw ', preview: 'hey', unreadCount: 1, current: false }];
+      } else if (expression.includes("querySelectorAll('li.contact-lis')") && expression.includes('.map((row,index)')) {
+        value = [{ index: 1, conversation: 'JudeLaw ', preview: 'hey', unreadCount: 1, current: false }];
       } else if (expression.startsWith("String(document.querySelector('header")) {
         value = 'JudeLaw';
       }
@@ -150,6 +152,8 @@ test('discovers unread contacts and confirms the selected conversation after swi
     json: async () => [{ type: 'page', title: 'Lovense Remote', url: 'file:///index.html', webSocketDebuggerUrl: 'ws://127.0.0.1/test' }]
   });
   const bridge = new RemoteChatBridge({ fetchImpl, WebSocketImpl: FakeWebSocket });
+  const conversations = await bridge.conversations();
+  assert.deepEqual(conversations, [{ index: 1, conversation: 'JudeLaw', preview: 'hey', unreadCount: 1, current: false }]);
   const unread = await bridge.unreadConversations();
   assert.deepEqual(unread, [{ index: 1, conversation: 'JudeLaw', preview: 'hey', unreadCount: 1, current: false }]);
   assert.equal(await bridge.openConversation('JudeLaw'), 'JudeLaw');

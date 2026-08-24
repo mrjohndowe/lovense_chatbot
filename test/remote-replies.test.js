@@ -35,6 +35,9 @@ test('loads safe localhost review defaults', () => {
   assert.equal(config.monitorEnabled, true);
   assert.equal(config.autoSend, false);
   assert.equal(config.autoSwitchUnreadChats, true);
+  assert.equal(config.periodicFollowUpEnabled, false);
+  assert.equal(config.followUpIdleMs, 15 * 60_000);
+  assert.equal(config.followUpSweepMs, 5 * 60_000);
   assert.equal(config.autoSendMinDelayMs, 8000);
   assert.equal(config.autoSendMaxDelayMs, 25000);
   assert.equal(config.autoSendTypingMsPerChar, 45);

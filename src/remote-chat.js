@@ -88,6 +88,23 @@ export class RemoteChatBridge {
     return result?.result?.value;
   }
 
+  async conversations() {
+    const value = await this.evaluate(`(()=>{
+      const tidy=value=>String(value||'').replace(/\s+/g,' ').trim();
+      return [...document.querySelectorAll('li.contact-lis')].map((row,index)=>({
+        index,
+        conversation:tidy(row.querySelector('.nick-name')?.innerText),
+        preview:tidy(row.querySelector('.last-msg')?.innerText),
+        current:row.classList.contains('current-lis')
+      })).filter(item=>item.conversation);
+    })()`);
+    return Array.isArray(value) ? value.map(item => ({
+      ...item,
+      conversation: clean(item.conversation),
+      preview: clean(item.preview)
+    })) : [];
+  }
+
   async unreadConversations() {
     const value = await this.evaluate(`(()=>{
       const tidy=value=>String(value||'').replace(/\\s+/g,' ').trim();

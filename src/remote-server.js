@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { constantTimeEqual } from './policy.js';
 import { loadRemoteConfig } from './remote-config.js';
 import { RemoteChatBridge, fingerprint } from './remote-chat.js';
+import { createFollowUpTracker } from './follow-up.js';
 import { createReplyDeduper, generateReply } from './replies.js';
 import { chooseRandomToyControl, randomDelayMs } from './toy-random.js';
 
@@ -15,6 +16,7 @@ const publicDir = fileURLToPath(new URL('../public/', import.meta.url));
 const seen = new Set();
 const dedupeReply = createReplyDeduper();
 const conversationMemories = new Map();
+const followUps = createFollowUpTracker({ idleMs: config.followUpIdleMs });
 const reviews = [];
 let watching = false;
 let scanning = false;
@@ -23,6 +25,7 @@ let activeConversation = '';
 let lastScanAt = null;
 let lastError = '';
 let nextReviewId = 1;
+let nextFollowUpSweepAt = 0;
 let autoSend = config.autoSend;
 let toyControlEnabled = false;
 let selectedToyId = '';
@@ -77,6 +80,10 @@ function publicState() {
     reviewMode: !autoSend,
     autoSend,
     autoSwitchUnreadChats: config.autoSwitchUnreadChats,
+    periodicFollowUpEnabled: config.periodicFollowUpEnabled,
+    followUpIdleMs: config.followUpIdleMs,
+    followUpSweepMs: config.followUpSweepMs,
+    nextFollowUpSweepAt: config.periodicFollowUpEnabled && nextFollowUpSweepAt ? new Date(nextFollowUpSweepAt).toISOString() : null,
     autoSendMinDelayMs: config.autoSendMinDelayMs,
     autoSendMaxDelayMs: config.autoSendMaxDelayMs,
     autoSendTypingMsPerChar: config.autoSendTypingMsPerChar,
@@ -206,7 +213,7 @@ function rememberConversationTurn(conversation, role, content) {
   if (history.length > config.conversationMemoryMessages) history.splice(0, history.length - config.conversationMemoryMessages);
   conversationMemories.set(conversation, history);
 }
-async function processFreshMessages(snapshot, fresh) {
+async function processFreshMessages(snapshot, fresh, { source = 'incoming' } = {}) {
   if (!fresh.length) return;
   const combinedMessage = fresh.map(item => item.text).join('\n');
   const history = conversationMemories.get(snapshot.conversation) || [];
@@ -220,11 +227,46 @@ async function processFreshMessages(snapshot, fresh) {
     message: combinedMessage,
     reply,
     status: 'waiting',
+    source,
     createdAt: new Date().toISOString()
   };
   reviews.push(review);
   scheduleAuto(review);
   while (reviews.length > 20) reviews.shift();
+}
+
+async function sweepPeriodicFollowUps(originalConversation, { eligible = true } = {}) {
+  const contacts = await bridge.conversations();
+  let followUpQueued = false;
+  try {
+    for (const contact of contacts) {
+      if (!watching || !autoSend) break;
+      if (!contact.current) await bridge.openConversation(contact.conversation);
+      const snapshot = await bridge.snapshot();
+      const followUp = followUps.inspect(snapshot.conversation, snapshot.messages, { eligible });
+      if (!followUp) continue;
+
+      try {
+        seedConversationMemory(snapshot.conversation, snapshot.messages);
+        await processFreshMessages(snapshot, [followUp], { source: 'periodic-follow-up' });
+        activeConversation = snapshot.conversation;
+        followUpQueued = true;
+        break;
+      } catch (error) {
+        followUps.release(snapshot.conversation, followUp.key);
+        throw error;
+      }
+    }
+  } finally {
+    nextFollowUpSweepAt = Date.now() + config.followUpSweepMs;
+    if (!followUpQueued && originalConversation) {
+      const current = await bridge.snapshot().catch(() => null);
+      if (current?.conversation.toLocaleLowerCase('en-US') !== originalConversation.toLocaleLowerCase('en-US')) {
+        await bridge.openConversation(originalConversation);
+      }
+    }
+  }
+  return followUpQueued;
 }
 
 async function scan({ baseline = false } = {}) {
@@ -239,11 +281,17 @@ async function scan({ baseline = false } = {}) {
       if (unreadTarget && !unreadTarget.current) await bridge.openConversation(unreadTarget.conversation);
     }
 
+    if (!unreadTarget && config.periodicFollowUpEnabled && autoSend && !replyInProgress && Date.now() >= nextFollowUpSweepAt) {
+      const original = activeConversation || (await bridge.snapshot()).conversation;
+      await sweepPeriodicFollowUps(original, { eligible: !baseline });
+    }
+
     const snapshot = await bridge.snapshot();
     const conversationChanged = snapshot.conversation !== activeConversation;
     activeConversation = snapshot.conversation;
     const incoming = snapshot.messages.filter(item => item.direction === 'incoming' && item.type === 'text' && item.text);
     const keyed = incoming.map(item => ({ ...item, key: fingerprint(snapshot.conversation, `${item.index}\0${item.text}`) }));
+    let processedFresh = false;
 
     if (unreadTarget && snapshot.conversation.toLocaleLowerCase('en-US') === unreadTarget.conversation.toLocaleLowerCase('en-US')) {
       const fresh = keyed.slice(-Math.min(unreadTarget.unreadCount, keyed.length));
@@ -251,6 +299,7 @@ async function scan({ baseline = false } = {}) {
       seedConversationMemory(snapshot.conversation, snapshot.messages.filter(item => !freshIndexes.has(item.index)));
       for (const item of keyed) seen.add(item.key);
       await processFreshMessages(snapshot, fresh);
+      processedFresh = fresh.length > 0;
     } else if (baseline || conversationChanged) {
       seedConversationMemory(snapshot.conversation, snapshot.messages);
       for (const item of keyed) seen.add(item.key);
@@ -258,6 +307,7 @@ async function scan({ baseline = false } = {}) {
       const fresh = keyed.filter(item => !seen.has(item.key));
       for (const item of fresh) seen.add(item.key);
       await processFreshMessages(snapshot, fresh);
+      processedFresh = fresh.length > 0;
     }
 
     lastScanAt = new Date().toISOString();

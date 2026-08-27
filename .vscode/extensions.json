@@ -1,5 +1,7 @@
 {
     "recommendations": [
-        "local.repo-terminal-switcher"
+        "local.repo-terminal-switcher",
+        "merenut.ridiculous-coding",
+        "github.vscode-github-actions"
     ]
 }

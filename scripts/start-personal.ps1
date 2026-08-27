@@ -1,5 +1,5 @@
 $ErrorActionPreference = 'Stop'
-$lovenseExe = 'C:\Users\davil\AppData\Local\Lovense\Remote\Lovense_Remote.exe'
+$lovenseExe = 'C:\\Users\\MrJohnDowe\\AppData\\Local\\Lovense\\Remote\\Lovense_Remote.exe'
 $debugUrl = 'http://127.0.0.1:9223/json/version'
 $lovenseDirectory = [System.IO.Path]::GetDirectoryName($lovenseExe)
 if (-not (Test-Path -LiteralPath 'config.ini') -and -not (Test-Path -LiteralPath '.env')) {

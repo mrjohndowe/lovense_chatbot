@@ -1,0 +1,22 @@
+{
+    "sourceFile": "scripts/startBot.ps1",
+    "activeCommit": 0,
+    "commits": [
+        {
+            "activePatchIndex": 1,
+            "patches": [
+                {
+                    "date": 1787801079405,
+                    "content": "Index: \n===================================================================\n--- \n+++ \n"
+                },
+                {
+                    "date": 1787854193140,
+                    "content": "Index: \n===================================================================\n--- \n+++ \n@@ -1,31 +1,40 @@\n-Set-Location -LiteralPath 'G:\\.gitClones\\chatbot\\'\r\n+Set-Location -LiteralPath 'G:\\.gitClones\\chatbot'\r\n \r\n-if (Test-Path -LiteralPath '.\\.venv\\Scripts\\Activate.ps1') {\r\n-    Write-Host 'Activating virtual environment...'\r\n-    & '.\\.venv\\Scripts\\Activate.ps1'\r\n-}\r\n-else {\r\n-    Write-Host 'Virtual environment not found. Creating it...'\r\n+$VenvPython = '.\\.venv\\Scripts\\python.exe'\r\n+$Requirements = '.\\requirements.txt'\r\n+$Bot = '.\\bot.py'\r\n+\r\n+if (-not (Test-Path -LiteralPath $VenvPython)) {\r\n+    Write-Host 'Virtual environment not found. Creating it...' -ForegroundColor Yellow\r\n+\r\n     py -m venv .venv\r\n \r\n-    if (Test-Path -LiteralPath '.\\.venv\\Scripts\\Activate.ps1') {\r\n-        & '.\\.venv\\Scripts\\Activate.ps1'\r\n+    if ($LASTEXITCODE -ne 0) {\r\n+        Write-Host 'ERROR: Failed to create virtual environment.' -ForegroundColor Red\r\n+        exit 1\r\n+    }\r\n+}\r\n \r\n-        if (Test-Path -LiteralPath '.\\requirements.txt') {\r\n-            Write-Host 'Installing requirements...'\r\n-            python -m pip install -r requirements.txt\r\n-        }\r\n-    }\r\n\\ No newline at end of file\n-    else {\r\n-        Write-Host 'Failed to create virtual environment.'\r\n+if (Test-Path -LiteralPath $Requirements) {\r\n+    Write-Host 'Checking/installing requirements...' -ForegroundColor Cyan\r\n+\r\n+    & $VenvPython -m pip install -r $Requirements\r\n+\r\n+    if ($LASTEXITCODE -ne 0) {\r\n+        Write-Host 'ERROR: Failed to install requirements.' -ForegroundColor Red\r\n         exit 1\r\n     }\r\n }\r\n \r\n-if (Test-Path -LiteralPath '.\\bot.py') {\r\n-    Write-Host 'Starting chatbot...'\r\n-    python bot.py\r\n+if (-not (Test-Path -LiteralPath $Bot)) {\r\n+    Write-Host \"ERROR: bot.py was not found in $(Get-Location)\" -ForegroundColor Red\r\n+    Write-Host ''\r\n+    Write-Host 'Files in this directory:' -ForegroundColor Yellow\r\n+    Get-ChildItem\r\n+    exit 1\r\n }\r\n-else {\r\n-    Write-Host 'ERROR: bot.py was not found in G:\\.gitClones\\chatbot'\r\n-}\n+\r\n+Write-Host 'Starting chatbot...' -ForegroundColor Green\r\n+Write-Host ''\r\n+\r\n+& $VenvPython $Bot\n\\ No newline at end of file\n"
+                }
+            ],
+            "date": 1787801079405,
+            "name": "Commit-0",
+            "content": "Set-Location -LiteralPath 'G:\\.gitClones\\chatbot\\'\r\n\r\nif (Test-Path -LiteralPath '.\\.venv\\Scripts\\Activate.ps1') {\r\n    Write-Host 'Activating virtual environment...'\r\n    & '.\\.venv\\Scripts\\Activate.ps1'\r\n}\r\nelse {\r\n    Write-Host 'Virtual environment not found. Creating it...'\r\n    py -m venv .venv\r\n\r\n    if (Test-Path -LiteralPath '.\\.venv\\Scripts\\Activate.ps1') {\r\n        & '.\\.venv\\Scripts\\Activate.ps1'\r\n\r\n        if (Test-Path -LiteralPath '.\\requirements.txt') {\r\n            Write-Host 'Installing requirements...'\r\n            python -m pip install -r requirements.txt\r\n        }\r\n    }\r\n    else {\r\n        Write-Host 'Failed to create virtual environment.'\r\n        exit 1\r\n    }\r\n}\r\n\r\nif (Test-Path -LiteralPath '.\\bot.py') {\r\n    Write-Host 'Starting chatbot...'\r\n    python bot.py\r\n}\r\nelse {\r\n    Write-Host 'ERROR: bot.py was not found in G:\\.gitClones\\chatbot'\r\n}"
+        }
+    ]
+}

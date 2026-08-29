@@ -53,6 +53,8 @@ Set-Location -LiteralPath 'G:\\.gitClones\\chatbot'
 
 The review dashboard includes dedicated **Settings** and **Saved conversations** pages. Settings is prefilled from the current private `config.ini` and saves selected identity, reply, and desktop-navigation settings back to that file without displaying API keys, access tokens, or a saved Lovense password. Saved conversations displays the assistant's local in-memory conversation history; it is view-only and resets when the server stops.
 
+When started through `scripts/start-personal.ps1`, press **Ctrl+Alt+Shift+L** to hide the Lovense Remote window or restore it to the foreground. The app remains running and the Reply Assistant continues monitoring while its window is hidden.
+
 ## Daily workflow
 
 1. Open the Lovense conversation you want monitored.

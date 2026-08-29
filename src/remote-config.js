@@ -62,7 +62,8 @@ export function loadRemoteConfig(env = loadPersonalConfig()) {
     chatRelationshipStatus: String(env.CHAT_RELATIONSHIP_STATUS || '').trim(),
     chatInterests: String(env.CHAT_INTERESTS || '').trim(),
     remoteUsername: String(env.LOVENSE_REMOTE_USERNAME || '').trim(),
-    remotePassword: String(env.LOVENSE_REMOTE_PASSWORD || '')
+    remotePasswordEncrypted: String(env.LOVENSE_REMOTE_PASSWORD_ENCRYPTED || '').trim(),
+    remoteEncryptionKey: String(env.LOVENSE_REMOTE_ENCRYPTION_KEY || '').trim()
   };
   config.autoSendMaxDelayMs = Math.max(config.autoSendMinDelayMs, config.autoSendMaxDelayMs);
   config.toyRandomMaxLevel = Math.max(config.toyRandomMinLevel, config.toyRandomMaxLevel);

@@ -26,9 +26,22 @@ test('dashboard settings reject multiline values before writing', async () => {
 test('dashboard settings do not expose or erase a saved Lovense password when left blank', async () => {
   const cwd = await mkdtemp(path.join(tmpdir(), 'lovense-config-'));
   const filename = path.join(cwd, 'config.ini');
-  await writeFile(filename, 'LOVENSE_REMOTE_PASSWORD=private-password\r\nCHAT_FIRST_NAME=Old\r\n', 'utf8');
+  await writeFile(filename, 'LOVENSE_REMOTE_PASSWORD_ENCRYPTED=encrypted-password\r\nCHAT_FIRST_NAME=Old\r\n', 'utf8');
   const values = await readDashboardSettings({ cwd });
   assert.equal(values.LOVENSE_REMOTE_PASSWORD, '');
   await saveDashboardSettings({ ...values, CHAT_FIRST_NAME: 'Taylor', LOVENSE_REMOTE_PASSWORD: '' }, { cwd });
-  assert.match(await readFile(filename, 'utf8'), /LOVENSE_REMOTE_PASSWORD=private-password/);
+  assert.match(await readFile(filename, 'utf8'), /LOVENSE_REMOTE_PASSWORD_ENCRYPTED=encrypted-password/);
+});
+
+test('dashboard settings encrypt a newly entered Lovense password instead of saving it as text', async () => {
+  const cwd = await mkdtemp(path.join(tmpdir(), 'lovense-config-'));
+  const filename = path.join(cwd, 'config.ini');
+  const values = await readDashboardSettings({ cwd }).catch(() => ({}));
+  await writeFile(filename, 'CHAT_FIRST_NAME=Old\r\n', 'utf8');
+  const current = await readDashboardSettings({ cwd });
+  await saveDashboardSettings({ ...values, ...current, LOVENSE_REMOTE_PASSWORD: 'private password' }, { cwd });
+  const result = await readFile(filename, 'utf8');
+  assert.match(result, /LOVENSE_REMOTE_ENCRYPTION_KEY=[A-Za-z0-9_-]+/);
+  assert.match(result, /LOVENSE_REMOTE_PASSWORD_ENCRYPTED=v1\./);
+  assert.doesNotMatch(result, /private password/);
 });

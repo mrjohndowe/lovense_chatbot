@@ -2,6 +2,7 @@ import { readFile, rename, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { parseIni } from './ini-config.js';
+import { createEncryptionKey, encryptSecret } from './secret-crypto.js';
 
 export const DASHBOARD_SETTINGS = [
   'CHAT_USERNAME', 'CHAT_DISPLAY_NAME', 'CHAT_FIRST_NAME', 'CHAT_LAST_NAME', 'CHAT_DATE_OF_BIRTH',
@@ -11,7 +12,8 @@ export const DASHBOARD_SETTINGS = [
   'LOVENSE_REMOTE_USERNAME', 'AUTO_OPEN_MESSAGES'
 ];
 
-const PASSWORD_KEY = 'LOVENSE_REMOTE_PASSWORD';
+const PASSWORD_KEY = 'LOVENSE_REMOTE_PASSWORD_ENCRYPTED';
+const ENCRYPTION_KEY = 'LOVENSE_REMOTE_ENCRYPTION_KEY';
 
 function configPath(cwd) {
   return path.join(cwd, 'config.ini');
@@ -53,10 +55,17 @@ export async function saveDashboardSettings(values, { cwd = process.cwd(), valid
   const filename = configPath(cwd);
   if (!existsSync(filename)) throw new Error('config.ini was not found. Start the personal launcher once to create it.');
   const updates = Object.fromEntries(DASHBOARD_SETTINGS.map(key => [key, normalizedValue(values?.[key], key)]));
-  const password = normalizedValue(values?.[PASSWORD_KEY], PASSWORD_KEY);
-  if (password) updates[PASSWORD_KEY] = password;
+  const password = String(values?.LOVENSE_REMOTE_PASSWORD ?? '');
+  if (/\r|\n/.test(password)) throw new Error('LOVENSE_REMOTE_PASSWORD must be a single line.');
+  if (password.length > 4000) throw new Error('LOVENSE_REMOTE_PASSWORD is too long.');
   const source = await readFile(filename, 'utf8');
-  const candidate = { ...parseIni(source), ...updates };
+  const current = parseIni(source);
+  if (password) {
+    const key = current[ENCRYPTION_KEY] || createEncryptionKey();
+    updates[ENCRYPTION_KEY] = key;
+    updates[PASSWORD_KEY] = encryptSecret(password, key);
+  }
+  const candidate = { ...current, ...updates };
   if (validate) validate(candidate);
   const temporary = `${filename}.dashboard-save`;
   await writeFile(temporary, updatedText(source, updates), 'utf8');

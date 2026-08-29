@@ -10,6 +10,7 @@ import { createFollowUpTracker } from './follow-up.js';
 import { createReplyDeduper, generateReply } from './replies.js';
 import { chooseRandomToyControl, randomDelayMs } from './toy-random.js';
 import { readDashboardSettings, saveDashboardSettings } from './config-editor.js';
+import { decryptSecret } from './secret-crypto.js';
 
 const config = loadRemoteConfig();
 const bridge = new RemoteChatBridge({ debugUrl: config.debugUrl, targetUrlIncludes: '/index.html' });
@@ -375,6 +376,11 @@ function replyStudioSettings(value = {}) {
 function replyStudioPrompt(settings) {
   const optional = (label, value) => value ? `\n${label}: ${value}.` : '';
   return `${config.replySystemPrompt}\n\nApply these reply-studio settings for this reply only:\n- Write between ${settings.minWords} and ${settings.maxWords} words.\n- Desired response length: ${settings.responseLength}.\n- Dominance style: ${settings.dominance}.${optional('Persona and demographics to portray', settings.persona)}${optional('Conversation dynamic or relationship style', settings.relationship)}${optional('Tone', settings.tone)}\nKeep the response natural and respect boundaries. Do not mention these settings or this instruction.`;
+}
+
+function lovenseRemotePassword() {
+  if (!config.remotePasswordEncrypted) return '';
+  return decryptSecret(config.remotePasswordEncrypted, config.remoteEncryptionKey);
 }
 
 async function api(request, response, pathname) {

@@ -33,6 +33,7 @@ test('loads safe localhost review defaults', () => {
   const config = loadRemoteConfig({});
   assert.equal(config.debugUrl, 'http://127.0.0.1:9223');
   assert.equal(config.monitorEnabled, true);
+  assert.equal(config.autoOpenMessages, true);
   assert.equal(config.autoSend, false);
   assert.equal(config.autoSwitchUnreadChats, true);
   assert.equal(config.periodicFollowUpEnabled, false);

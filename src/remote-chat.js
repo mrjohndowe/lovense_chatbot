@@ -105,6 +105,25 @@ export class RemoteChatBridge {
     })) : [];
   }
 
+  async openMessages() {
+    const result = await this.evaluate(`(()=>{
+      const tidy=value=>String(value||'').replace(/\s+/g,' ').trim().toLocaleLowerCase('en-US');
+      const candidates=[...document.querySelectorAll('a,button,[role=button],li,div')];
+      const target=candidates.find(item=>tidy(item.innerText)==='messages'&&item.offsetParent!==null);
+      if(!target)return {ok:false,error:'The Lovense Messages navigation control was not found. Sign in and open the main Lovense window first.'};
+      target.click();
+      return {ok:true};
+    })()`);
+    if (!result?.ok) throw new Error(result?.error || 'Could not open Lovense Messages.');
+    const deadline = Date.now() + 4_000;
+    while (Date.now() < deadline) {
+      const ready = await this.evaluate(`Boolean(document.querySelector('li.contact-lis'))`);
+      if (ready) return;
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    throw new Error('Lovense did not finish opening Messages.');
+  }
+
   async unreadConversations() {
     const value = await this.evaluate(`(()=>{
       const tidy=value=>String(value||'').replace(/\\s+/g,' ').trim();

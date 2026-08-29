@@ -324,6 +324,7 @@ async function scan({ baseline = false } = {}) {
 
 async function startWatching() {
   if (watching) return;
+  if (config.autoOpenMessages) await bridge.openMessages();
   watching = true;
   await scan({ baseline: true });
   timer = setInterval(scan, config.pollMs);
@@ -334,6 +335,15 @@ function stopWatching() {
   watching = false;
   if (timer) clearInterval(timer);
   timer = null;
+}
+
+function publicConversations() {
+  return [...conversationMemories.entries()]
+    .map(([conversation, messages]) => ({
+      conversation,
+      messages: messages.map(message => ({ role: message.role, content: message.content }))
+    }))
+    .sort((left, right) => left.conversation.localeCompare(right.conversation));
 }
 
 function replyStudioSettings(value = {}) {
@@ -372,6 +382,7 @@ async function api(request, response, pathname) {
   if (request.method !== 'GET' && !sameOrigin(request)) return json(response, 403, { error: 'Request origin was rejected.' });
   try {
     if (request.method === 'GET' && pathname === '/api/status') return json(response, 200, publicState());
+    if (request.method === 'GET' && pathname === '/api/conversations') return json(response, 200, { conversations: publicConversations() });
     if (request.method === 'GET' && pathname === '/api/settings') return json(response, 200, { settings: await readDashboardSettings() });
     if (request.method === 'POST' && pathname === '/api/settings') {
       const body = await readJson(request);

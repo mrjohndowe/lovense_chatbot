@@ -7,8 +7,11 @@ export const DASHBOARD_SETTINGS = [
   'CHAT_USERNAME', 'CHAT_DISPLAY_NAME', 'CHAT_FIRST_NAME', 'CHAT_LAST_NAME', 'CHAT_DATE_OF_BIRTH',
   'CHAT_PLACE_OF_BIRTH', 'CHAT_CHILDREN', 'CHAT_AGE', 'CHAT_PRONOUNS', 'CHAT_LOCATION',
   'CHAT_OCCUPATION', 'CHAT_RELATIONSHIP_STATUS', 'CHAT_INTERESTS', 'REPLY_PROVIDER', 'REPLY_MODEL',
-  'REPLY_SYSTEM_PROMPT', 'MAX_REPLY_CHARS', 'CONVERSATION_MEMORY_MESSAGES', 'SEND_MEMORY_TO_OPENAI'
+  'REPLY_SYSTEM_PROMPT', 'MAX_REPLY_CHARS', 'CONVERSATION_MEMORY_MESSAGES', 'SEND_MEMORY_TO_OPENAI',
+  'LOVENSE_REMOTE_USERNAME', 'AUTO_OPEN_MESSAGES'
 ];
+
+const PASSWORD_KEY = 'LOVENSE_REMOTE_PASSWORD';
 
 function configPath(cwd) {
   return path.join(cwd, 'config.ini');
@@ -43,13 +46,15 @@ export async function readDashboardSettings({ cwd = process.cwd() } = {}) {
   const filename = configPath(cwd);
   if (!existsSync(filename)) throw new Error('config.ini was not found. Start the personal launcher once to create it.');
   const values = parseIni(await readFile(filename, 'utf8'));
-  return Object.fromEntries(DASHBOARD_SETTINGS.map(key => [key, values[key] || '']));
+  return { ...Object.fromEntries(DASHBOARD_SETTINGS.map(key => [key, values[key] || ''])), LOVENSE_REMOTE_PASSWORD: '' };
 }
 
 export async function saveDashboardSettings(values, { cwd = process.cwd(), validate } = {}) {
   const filename = configPath(cwd);
   if (!existsSync(filename)) throw new Error('config.ini was not found. Start the personal launcher once to create it.');
   const updates = Object.fromEntries(DASHBOARD_SETTINGS.map(key => [key, normalizedValue(values?.[key], key)]));
+  const password = normalizedValue(values?.[PASSWORD_KEY], PASSWORD_KEY);
+  if (password) updates[PASSWORD_KEY] = password;
   const source = await readFile(filename, 'utf8');
   const candidate = { ...parseIni(source), ...updates };
   if (validate) validate(candidate);

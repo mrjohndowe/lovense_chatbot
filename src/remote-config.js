@@ -25,6 +25,7 @@ export function loadRemoteConfig(env = loadPersonalConfig()) {
     debugUrl: String(env.LOVENSE_REMOTE_DEBUG_URL || 'http://127.0.0.1:9223').replace(/\/$/, ''),
     pollMs: integer(env.LOVENSE_REMOTE_POLL_MS, 2500, 1000, 30000),
     monitorEnabled: enabled(env.ENABLE_REMOTE_MONITOR, true),
+    autoOpenMessages: enabled(env.AUTO_OPEN_MESSAGES, true),
     autoSend: enabled(env.ENABLE_AUTO_SEND, false),
     autoSwitchUnreadChats: enabled(env.AUTO_SWITCH_UNREAD_CHATS, true),
     periodicFollowUpEnabled: enabled(env.ENABLE_PERIODIC_FOLLOW_UP, false),
@@ -59,7 +60,9 @@ export function loadRemoteConfig(env = loadPersonalConfig()) {
     chatLocation: String(env.CHAT_LOCATION || '').trim(),
     chatOccupation: String(env.CHAT_OCCUPATION || '').trim(),
     chatRelationshipStatus: String(env.CHAT_RELATIONSHIP_STATUS || '').trim(),
-    chatInterests: String(env.CHAT_INTERESTS || '').trim()
+    chatInterests: String(env.CHAT_INTERESTS || '').trim(),
+    remoteUsername: String(env.LOVENSE_REMOTE_USERNAME || '').trim(),
+    remotePassword: String(env.LOVENSE_REMOTE_PASSWORD || '')
   };
   config.autoSendMaxDelayMs = Math.max(config.autoSendMinDelayMs, config.autoSendMaxDelayMs);
   config.toyRandomMaxLevel = Math.max(config.toyRandomMinLevel, config.toyRandomMaxLevel);

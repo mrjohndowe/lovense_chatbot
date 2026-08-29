@@ -51,6 +51,8 @@ Set-Location -LiteralPath 'G:\\.gitClones\\chatbot'
 
 `config.ini` is the primary personal configuration file. Existing `.env` files remain supported only as a fallback when `config.ini` does not exist. Regular operating-system environment variables override file values.
 
+The review dashboard includes dedicated **Settings** and **Saved conversations** pages. Settings is prefilled from the current private `config.ini` and saves selected identity, reply, and desktop-navigation settings back to that file without displaying API keys, access tokens, or a saved Lovense password. Saved conversations displays the assistant's local in-memory conversation history; it is view-only and resets when the server stops.
+
 ## Daily workflow
 
 1. Open the Lovense conversation you want monitored.

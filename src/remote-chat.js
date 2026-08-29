@@ -129,6 +129,36 @@ export class RemoteChatBridge {
     throw new Error('Lovense did not finish opening Messages.');
   }
 
+  async signInIfNeeded(username, password) {
+    const result = await this.evaluate(`(()=>{
+      const visible=item=>item&&item.offsetParent!==null;
+      const inputs=[...document.querySelectorAll('input')].filter(visible);
+      const passwordInput=inputs.find(item=>String(item.type||'').toLowerCase()==='password');
+      if(!passwordInput)return {needed:false};
+      const usernameInput=inputs.find(item=>item!==passwordInput&&(String(item.type||'').toLowerCase()==='email'||/user|email|account|login/i.test(String(item.name||'')+' '+String(item.id||'')+' '+String(item.placeholder||''))))||inputs.find(item=>item!==passwordInput);
+      if(!usernameInput)return {needed:true,error:'The Lovense username field was not found.'};
+      const username=${JSON.stringify(clean(username))};
+      const password=${JSON.stringify(String(password || ''))};
+      if(!username||!password)return {needed:true,error:'Save a Lovense username and password in Settings before automatic sign-in can continue.'};
+      const set=(input,value)=>{const descriptor=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value');descriptor.set.call(input,value);input.dispatchEvent(new Event('input',{bubbles:true}));input.dispatchEvent(new Event('change',{bubbles:true}));};
+      set(usernameInput,username);set(passwordInput,password);
+      const buttons=[...document.querySelectorAll('button,input[type=submit],[role=button]')].filter(visible);
+      const submit=buttons.find(item=>/sign\s*in|log\s*in|login/i.test(String(item.innerText||item.value||item.getAttribute('aria-label')||'')))||document.querySelector('.login-btn');
+      if(!visible(submit))return {needed:true,error:'The Lovense sign-in button was not found.'};
+      submit.click();
+      return {needed:true,submitted:true};
+    })()`);
+    if (result?.error) throw new Error(result.error);
+    if (!result?.needed) return false;
+    const deadline = Date.now() + 20_000;
+    while (Date.now() < deadline) {
+      await new Promise(resolve => setTimeout(resolve, 500));
+      const stillOnLogin = await this.evaluate(`Boolean([...document.querySelectorAll('input[type=password]')].find(item=>item.offsetParent!==null))`);
+      if (!stillOnLogin) return true;
+    }
+    throw new Error('Lovense sign-in did not finish. Check the Lovense window for a verification prompt or login error.');
+  }
+
   async unreadConversations() {
     const value = await this.evaluate(`(()=>{
       const tidy=value=>String(value||'').replace(/\\s+/g,' ').trim();

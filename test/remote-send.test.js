@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import { classifyRemoteMessage, RemoteChatBridge } from '../src/remote-chat.js';
 
 test('automatic send rechecks the conversation and clicks the Lovense Send control', async () => {
@@ -115,6 +116,13 @@ test('classifies the mobile-only Vow game invitation as non-replyable', () => {
   assert.equal(classifyRemoteMessage('  [VowGameInviteCard]  '), 'mobile-game-card');
   assert.equal(classifyRemoteMessage('Want to play? [vowgameinvitecard]'), 'mobile-game-card');
   assert.equal(classifyRemoteMessage('Want to play a game?'), 'text');
+});
+
+test('remote bridge includes a guarded sign-in path before opening chats', async () => {
+  const source = await readFile(new URL('../src/remote-chat.js', import.meta.url), 'utf8');
+  assert.match(source, /async signInIfNeeded\(username, password\)/);
+  assert.match(source, /input\[type=password\]/);
+  assert.match(source, /Lovense sign-in did not finish/);
 });
 
 

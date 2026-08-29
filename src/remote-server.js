@@ -327,6 +327,7 @@ async function scan({ baseline = false } = {}) {
 async function startWatching() {
   if (watching) return;
   await ensureLovenseRemote(config);
+  await bridge.signInIfNeeded(config.remoteUsername, lovenseRemotePassword());
   if (config.autoOpenMessages) await bridge.openMessages();
   watching = true;
   await scan({ baseline: true });

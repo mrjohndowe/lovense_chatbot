@@ -51,7 +51,7 @@ During development, `npm run desktop` opens the same desktop shell and makes a o
 
 The app starts the existing local service at `127.0.0.1` and displays the current Reply dashboard, Settings, and Saved conversations pages in its own window. Its Help menu can open the settings folder or the local dashboard in a browser. Press **Ctrl+Alt+Shift+L** (or use the File menu) to hide or restore both Lovense Remote and the desktop Assistant together. Closing the desktop window exits the assistant; Lovense Remote is left running.
 
-When desktop monitoring is enabled, the Assistant also waits for Lovense Remote’s local DevTools target and opens its Developer Tools page automatically—the same required inspection page used by the personal PowerShell launcher. Use **Help → Open Lovense Developer Tools** to reopen it after closing the browser tab.
+The Assistant does not open Lovense Remote’s Developer Tools page automatically. Use **Help → Open Lovense Developer Tools** only when you deliberately need the same inspection page provided by the personal PowerShell launcher.
 
 ### Desktop architecture
 

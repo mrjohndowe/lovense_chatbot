@@ -39,8 +39,8 @@ test('rejects a missing Lovense DevTools target instead of opening a different p
   );
 });
 
-test('the packaged desktop app opens DevTools automatically and exposes a reopen action', async () => {
+test('the packaged desktop app exposes a manual DevTools action without opening it at startup', async () => {
   const source = await readFile(new URL('../src/desktop-main.js', import.meta.url), 'utf8');
-  assert.match(source, /if \(monitorEnabled\) void openLovenseDevtools\(\)/);
   assert.match(source, /label: 'Open Lovense Developer Tools'/);
+  assert.doesNotMatch(source, /void openLovenseDevtools\(\)/);
 });

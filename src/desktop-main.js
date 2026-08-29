@@ -144,14 +144,13 @@ if (!gotLock) {
     process.chdir(userDataPath);
 
     const { loadRemoteConfig } = await import('./remote-config.js');
-    const { port, debugUrl, monitorEnabled } = loadRemoteConfig();
+    const { port, debugUrl } = loadRemoteConfig();
     lovenseDebugUrl = debugUrl;
     dashboardUrl = `http://${dashboardHost}:${port}`;
     installMenu(userDataPath);
     await import('./remote-server.js');
     await waitForDashboard(dashboardUrl);
     createWindow();
-    if (monitorEnabled) void openLovenseDevtools();
     desktopUpdater = configureDesktopUpdater({
       updater: autoUpdater,
       app,

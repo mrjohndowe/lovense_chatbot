@@ -8,3 +8,4 @@ Thumbs.db
 config.ini
 .lh/
 .lh/config.ini.json
+package-lock.json

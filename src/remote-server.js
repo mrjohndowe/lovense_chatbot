@@ -529,7 +529,14 @@ const server = createServer(async (request, response) => {
 
 server.listen(config.port, '127.0.0.1', async () => {
   console.log(`Lovense Remote Reply Assistant running at http://127.0.0.1:${config.port} (review mode)`);
-  if (config.monitorEnabled) await startWatching();
+  if (config.monitorEnabled) {
+    try {
+      await startWatching();
+    } catch (error) {
+      lastError = `Lovense monitoring is waiting for the desktop app: ${error.message}`;
+      console.warn(lastError);
+    }
+  }
 });
 
 process.on('SIGINT', () => {

@@ -4,13 +4,56 @@
   "private": true,
   "description": "A safety-first local chatbot controller for Lovense devices.",
   "type": "module",
+  "main": "src/desktop-main.js",
   "scripts": {
     "start": "node src/remote-server.js",
     "dev": "node --watch src/remote-server.js",
+    "desktop": "electron .",
+    "dist": "electron-builder --win nsis portable",
     "test": "node --test"
   },
   "engines": {
     "node": ">=20"
+  },
+  "devDependencies": {
+    "electron": "37.3.1",
+    "electron-builder": "26.0.12"
+  },
+  "build": {
+    "appId": "com.mrjohndowe.lovense-remote-reply-assistant",
+    "productName": "Lovense Remote Reply Assistant",
+    "asar": true,
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "src/**/*",
+      "public/**/*",
+      "config.example.ini",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
   }
 }
 

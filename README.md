@@ -17,7 +17,52 @@ This project does not use the Lovense developer API, pairing callbacks, Cloudfla
 - Rechecks the conversation title immediately before drafting and sending.
 - Avoids repeating the same generated answer within a conversation and uses a natural callback when a provider returns duplicate text.
 
-## Start on Windows
+## Desktop application (Windows)
+
+The Reply Assistant can run as a normal Windows desktop application. The Electron window embeds the existing localhost-only reply dashboard; it does not expose the dashboard to the network or change how Lovense Remote is started, signed in to, or navigated.
+
+### Build the standalone installers
+
+Requirements:
+
+- Node.js 20 or newer to build the product.
+- Lovense Remote for Windows installed and logged in on the computer that will use the assistant.
+
+From PowerShell:
+
+```powershell
+Set-Location 'G:\.gitClones\chatbot'
+npm install
+npm run dist
+
+```
+
+The resulting x64 installer and portable executable are written under `release`. The installer adds Start menu and desktop shortcuts. The portable executable can be copied to another Windows computer; it still requires that computer's Lovense Remote installation.
+
+At first launch, the packaged application creates its private settings file at `%APPDATA%\Lovense Remote Reply Assistant\config.ini` from the fully commented example. It keeps the same AES-256-GCM encrypted credential fields and never writes a plaintext Lovense password. The **Settings** page writes to that per-user file, and **Saved conversations** remains in-memory only for the current run.
+
+During development, `npm run desktop` opens the same desktop shell and makes a one-time copy of an existing repository `config.ini` into the per-user application folder, preserving local settings and encrypted fields. It never overwrites that per-user configuration. To use fresh defaults, delete only `%APPDATA%\Lovense Remote Reply Assistant\config.ini` while the app is closed, then launch it again.
+
+The app starts the existing local service at `127.0.0.1` and displays the current Reply dashboard, Settings, and Saved conversations pages in its own window. Its Help menu can open the settings folder or the local dashboard in a browser. Closing the desktop window exits the assistant; Lovense Remote is left running.
+
+### Desktop architecture
+
+```
+Windows shortcut / portable EXE
+        |
+Electron main process
+  - private AppData config.ini
+  - single-instance desktop window
+        |
+existing Node local service (127.0.0.1 only)
+  - encrypted credential handling
+  - Lovense Remote startup and chat navigation
+  - reply queue, local settings, in-memory conversation viewer
+        |
+Lovense Remote DevTools endpoint (127.0.0.1:9223)
+```
+
+## Start from the repository (browser workflow)
 
 Requirements:
 

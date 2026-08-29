@@ -14,9 +14,15 @@ test('personal launcher starts a single hidden Lovense window hotkey helper', as
   assert.match(helper, /0x0001 -bor 0x0002 -bor 0x0004/);
   assert.match(helper, /ShowWindow\(\$window, \$hide\)/);
   assert.match(helper, /ShowWindow\(\$window, \$restore\)/);
-  assert.match(helper, /param\(\[switch\]\$Once\)/);
+  assert.match(helper, /param\(\[switch\]\$Once, \[switch\]\$Restore\)/);
   assert.match(helper, /if \(\$Once\)/);
+  assert.match(helper, /if \(\$Restore\)/);
+  assert.match(helper, /function Restore-PairedWindows/);
   assert.match(helper, /function Get-AssistantWindow/);
   assert.match(helper, /function Toggle-PairedWindows/);
   assert.match(helper, /ShowWindow\(\$assistantWindow, \$hide\)/);
+  assert.match(helper, /EnumWindows/);
+  assert.match(helper, /FindTopLevelWindow/);
+  assert.match(helper, /GetWindowThreadProcessId/);
+  assert.doesNotMatch(helper, /MainWindowHandle/);
 });

@@ -1,18 +1,43 @@
-param([switch]$Once)
+param([switch]$Once, [switch]$Restore)
 
 $ErrorActionPreference = 'Stop'
 
 Add-Type @'
 using System;
 using System.Runtime.InteropServices;
+using System.Text;
 public static class LovenseWindowHotkey {
   [StructLayout(LayoutKind.Sequential)] public struct MSG { public IntPtr hwnd; public uint message; public IntPtr wParam; public IntPtr lParam; public uint time; public int pt_x; public int pt_y; }
+  private delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
   [DllImport("user32.dll")] public static extern bool RegisterHotKey(IntPtr hWnd, int id, uint modifiers, uint key);
   [DllImport("user32.dll")] public static extern bool UnregisterHotKey(IntPtr hWnd, int id);
   [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int command);
   [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr hWnd);
+  [DllImport("user32.dll")] public static extern bool IsWindow(IntPtr hWnd);
   [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd);
   [DllImport("user32.dll")] public static extern int GetMessage(out MSG message, IntPtr hWnd, uint min, uint max);
+  [DllImport("user32.dll")] private static extern bool EnumWindows(EnumWindowsProc callback, IntPtr lParam);
+  [DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
+  [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int GetWindowText(IntPtr hWnd, StringBuilder text, int maxCount);
+  [DllImport("user32.dll")] private static extern IntPtr GetWindow(IntPtr hWnd, uint command);
+
+  public static IntPtr FindTopLevelWindow(int[] processIds, string expectedTitle) {
+    IntPtr hiddenCandidate = IntPtr.Zero;
+    IntPtr visibleCandidate = IntPtr.Zero;
+    EnumWindows((hWnd, lParam) => {
+      if (GetWindow(hWnd, 4) != IntPtr.Zero) return true; // owned windows are not the application window
+      uint processId;
+      GetWindowThreadProcessId(hWnd, out processId);
+      if (Array.IndexOf(processIds, (int)processId) < 0) return true;
+      var title = new StringBuilder(512);
+      GetWindowText(hWnd, title, title.Capacity);
+      if (!string.IsNullOrEmpty(expectedTitle) && !string.Equals(title.ToString(), expectedTitle, StringComparison.Ordinal)) return true;
+      if (IsWindowVisible(hWnd)) { visibleCandidate = hWnd; return false; }
+      if (hiddenCandidate == IntPtr.Zero) hiddenCandidate = hWnd;
+      return true;
+    }, IntPtr.Zero);
+    return visibleCandidate != IntPtr.Zero ? visibleCandidate : hiddenCandidate;
+  }
 }
 '@
 
@@ -24,18 +49,16 @@ $restore = 9
 $lastWindow = [IntPtr]::Zero
 
 function Get-LovenseWindow {
-    if ($lastWindow -ne [IntPtr]::Zero) { return $lastWindow }
-    $process = Get-Process -Name 'Lovense_Remote' -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowHandle -ne 0 } | Select-Object -First 1
-    if ($process) { $lastWindow = $process.MainWindowHandle }
+    if ($lastWindow -ne [IntPtr]::Zero -and [LovenseWindowHotkey]::IsWindow($lastWindow)) { return $lastWindow }
+    $processIds = @(Get-Process -Name 'Lovense_Remote' -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Id)
+    if ($processIds.Count) { $lastWindow = [LovenseWindowHotkey]::FindTopLevelWindow([int[]]$processIds, '') }
     return $lastWindow
 }
 
 function Get-AssistantWindow {
-    $process = Get-Process -ErrorAction SilentlyContinue |
-        Where-Object { $_.MainWindowHandle -ne 0 -and $_.MainWindowTitle -eq 'Lovense Remote Reply Assistant' } |
-        Select-Object -First 1
-    if ($process) { return $process.MainWindowHandle }
-    return [IntPtr]::Zero
+    $processIds = @(Get-Process -Name 'Lovense Remote Reply Assistant' -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Id)
+    if (-not $processIds.Count) { return [IntPtr]::Zero }
+    return [LovenseWindowHotkey]::FindTopLevelWindow([int[]]$processIds, 'Lovense Remote Reply Assistant')
 }
 
 function Toggle-LovenseWindow {
@@ -52,12 +75,12 @@ function Toggle-LovenseWindow {
 function Toggle-PairedWindows {
     $lovenseWindow = Get-LovenseWindow
     $assistantWindow = Get-AssistantWindow
-    if ($lovenseWindow -eq [IntPtr]::Zero) { return }
-    if ([LovenseWindowHotkey]::IsWindowVisible($lovenseWindow)) {
+    $hidePairedWindows = $lovenseWindow -ne [IntPtr]::Zero -and [LovenseWindowHotkey]::IsWindowVisible($lovenseWindow)
+    if ($hidePairedWindows) {
         [LovenseWindowHotkey]::ShowWindow($lovenseWindow, $hide) | Out-Null
         if ($assistantWindow -ne [IntPtr]::Zero) { [LovenseWindowHotkey]::ShowWindow($assistantWindow, $hide) | Out-Null }
     } else {
-        [LovenseWindowHotkey]::ShowWindow($lovenseWindow, $restore) | Out-Null
+        if ($lovenseWindow -ne [IntPtr]::Zero) { [LovenseWindowHotkey]::ShowWindow($lovenseWindow, $restore) | Out-Null }
         if ($assistantWindow -ne [IntPtr]::Zero) {
             [LovenseWindowHotkey]::ShowWindow($assistantWindow, $restore) | Out-Null
             [LovenseWindowHotkey]::SetForegroundWindow($assistantWindow) | Out-Null
@@ -65,6 +88,23 @@ function Toggle-PairedWindows {
             [LovenseWindowHotkey]::SetForegroundWindow($lovenseWindow) | Out-Null
         }
     }
+}
+
+function Restore-PairedWindows {
+    $lovenseWindow = Get-LovenseWindow
+    $assistantWindow = Get-AssistantWindow
+    if ($lovenseWindow -ne [IntPtr]::Zero) { [LovenseWindowHotkey]::ShowWindow($lovenseWindow, $restore) | Out-Null }
+    if ($assistantWindow -ne [IntPtr]::Zero) {
+        [LovenseWindowHotkey]::ShowWindow($assistantWindow, $restore) | Out-Null
+        [LovenseWindowHotkey]::SetForegroundWindow($assistantWindow) | Out-Null
+    } elseif ($lovenseWindow -ne [IntPtr]::Zero) {
+        [LovenseWindowHotkey]::SetForegroundWindow($lovenseWindow) | Out-Null
+    }
+}
+
+if ($Restore) {
+    Restore-PairedWindows
+    exit 0
 }
 
 if ($Once) {

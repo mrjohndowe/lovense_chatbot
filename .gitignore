@@ -6,3 +6,4 @@ coverage/
 Thumbs.db
 config.ini
 .lh/
+.lh/config.ini.json

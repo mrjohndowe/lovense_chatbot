@@ -11,6 +11,7 @@ import { createReplyDeduper, generateReply } from './replies.js';
 import { chooseRandomToyControl, randomDelayMs } from './toy-random.js';
 import { readDashboardSettings, saveDashboardSettings } from './config-editor.js';
 import { decryptSecret } from './secret-crypto.js';
+import { ensureLovenseRemote } from './remote-launcher.js';
 
 const config = loadRemoteConfig();
 const bridge = new RemoteChatBridge({ debugUrl: config.debugUrl, targetUrlIncludes: '/index.html' });
@@ -325,6 +326,7 @@ async function scan({ baseline = false } = {}) {
 
 async function startWatching() {
   if (watching) return;
+  await ensureLovenseRemote(config);
   if (config.autoOpenMessages) await bridge.openMessages();
   watching = true;
   await scan({ baseline: true });

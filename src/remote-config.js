@@ -1,4 +1,5 @@
 import { loadPersonalConfig } from './ini-config.js';
+import path from 'node:path';
 
 const providers = new Set(['template', 'ollama', 'openai']);
 
@@ -23,6 +24,7 @@ export function loadRemoteConfig(env = loadPersonalConfig()) {
     port: integer(env.PORT, 3000, 1, 65535),
     accessToken: env.CHATBOT_ACCESS_TOKEN || '',
     debugUrl: String(env.LOVENSE_REMOTE_DEBUG_URL || 'http://127.0.0.1:9223').replace(/\/$/, ''),
+    remoteExecutable: String(env.LOVENSE_REMOTE_EXECUTABLE || path.join(process.env.LOCALAPPDATA || '', 'Lovense', 'Remote', 'Lovense_Remote.exe')).trim(),
     pollMs: integer(env.LOVENSE_REMOTE_POLL_MS, 2500, 1000, 30000),
     monitorEnabled: enabled(env.ENABLE_REMOTE_MONITOR, true),
     autoOpenMessages: enabled(env.AUTO_OPEN_MESSAGES, true),

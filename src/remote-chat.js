@@ -28,13 +28,17 @@ export class RemoteChatBridge {
 
   async connect() {
     if (this.socket?.readyState === this.WebSocketImpl.OPEN) return;
-    const response = await this.fetch(`${this.debugUrl}/json/list`, { signal: AbortSignal.timeout(4_000) });
-    if (!response.ok) throw new Error(`Lovense inspection endpoint returned HTTP ${response.status}.`);
-    const targets = await response.json();
-    const pages = targets.filter(item => item.type === 'page' && item.title === 'Lovense Remote');
-    const target = this.targetUrlIncludes
-      ? pages.find(item => String(item.url || '').includes(this.targetUrlIncludes))
-      : (pages.find(item => String(item.url || '').includes('/index.html')) || pages[0]);
+    let target;
+    for (let attempt = 0; attempt < 10 && !target; attempt += 1) {
+      const response = await this.fetch(`${this.debugUrl}/json/list`, { signal: AbortSignal.timeout(4_000) });
+      if (!response.ok) throw new Error(`Lovense inspection endpoint returned HTTP ${response.status}.`);
+      const targets = await response.json();
+      const pages = targets.filter(item => item.type === 'page' && item.title === 'Lovense Remote');
+      target = this.targetUrlIncludes
+        ? pages.find(item => String(item.url || '').includes(this.targetUrlIncludes))
+        : (pages.find(item => String(item.url || '').includes('/index.html')) || pages[0]);
+      if (!target && attempt < 9) await new Promise(resolve => setTimeout(resolve, 1_000));
+    }
     if (!target?.webSocketDebuggerUrl) throw new Error('Lovense Remote renderer was not found.');
 
     await new Promise((resolve, reject) => {
@@ -109,8 +113,9 @@ export class RemoteChatBridge {
     const result = await this.evaluate(`(()=>{
       const tidy=value=>String(value||'').replace(/\s+/g,' ').trim().toLocaleLowerCase('en-US');
       const candidates=[...document.querySelectorAll('a,button,[role=button],li,div')];
-      const target=candidates.find(item=>tidy(item.innerText)==='messages'&&item.offsetParent!==null);
-      if(!target)return {ok:false,error:'The Lovense Messages navigation control was not found. Sign in and open the main Lovense window first.'};
+      const messages=candidates.find(item=>tidy(item.innerText)==='messages'&&item.offsetParent!==null);
+      const target=messages||document.querySelector('a[href="#/long-distance"]');
+      if(!target)return {ok:false,error:'The Lovense Messages or Long Distance navigation control was not found. Sign in and open the main Lovense window first.'};
       target.click();
       return {ok:true};
     })()`);

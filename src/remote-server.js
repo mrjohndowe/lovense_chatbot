@@ -13,6 +13,7 @@ import { chooseRandomToyControl, randomDelayMs } from './toy-random.js';
 import { readDashboardSettings, saveDashboardSettings } from './config-editor.js';
 import { decryptSecret } from './secret-crypto.js';
 import { ensureLovenseRemote } from './remote-launcher.js';
+import { createMonitorRetry } from './monitor-retry.js';
 
 const config = loadRemoteConfig();
 const bridge = new RemoteChatBridge({ debugUrl: config.debugUrl, targetUrlIncludes: '/index.html' });
@@ -26,6 +27,7 @@ const reviews = [];
 let watching = false;
 let scanning = false;
 let timer = null;
+let monitorRetry;
 let activeConversation = '';
 let lastScanAt = null;
 let lastError = '';
@@ -77,6 +79,8 @@ function publicState() {
   return {
     watching,
     connected: Boolean(activeConversation && !lastError),
+    monitorRequested: monitorRetry?.isRequested() || false,
+    retryScheduled: monitorRetry?.isRetryScheduled() || false,
     activeConversation,
     lastScanAt,
     lastError,
@@ -334,7 +338,7 @@ async function scan({ baseline = false, catchUp = false } = {}) {
   }
 }
 
-async function startWatching() {
+async function beginWatching() {
   if (watching) return;
   await ensureLovenseRemote(config);
   await bridge.signInIfNeeded(config.remoteUsername, lovenseRemotePassword());
@@ -345,11 +349,24 @@ async function startWatching() {
   timer.unref();
 }
 
+async function startWatching() {
+  return monitorRetry.activate();
+}
+
 function stopWatching() {
+  monitorRetry.pause();
   watching = false;
   if (timer) clearInterval(timer);
   timer = null;
 }
+
+monitorRetry = createMonitorRetry({
+  start: beginWatching,
+  onWaiting: error => {
+    activeConversation = '';
+    lastError = `Waiting for Lovense Remote. The Assistant will retry automatically: ${error.message}`;
+  }
+});
 
 function publicConversations() {
   return [...conversationMemories.entries()]
@@ -553,12 +570,7 @@ const server = createServer(async (request, response) => {
 server.listen(config.port, '127.0.0.1', async () => {
   console.log(`Lovense Remote Reply Assistant running at http://127.0.0.1:${config.port} (review mode)`);
   if (config.monitorEnabled) {
-    try {
-      await startWatching();
-    } catch (error) {
-      lastError = `Lovense monitoring is waiting for the desktop app: ${error.message}`;
-      console.warn(lastError);
-    }
+    await startWatching();
   }
 });
 

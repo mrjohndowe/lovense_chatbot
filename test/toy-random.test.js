@@ -49,6 +49,7 @@ test('server exposes Random status and cancels it on every stop path', async () 
 
 test('server stays available when Lovense Remote is not yet exposing its debug port', async () => {
   const source = await readFile(new URL('../src/remote-server.js', import.meta.url), 'utf8');
-  assert.match(source, /try \{\s*await startWatching\(\);\s*\} catch \(error\)/);
-  assert.match(source, /Lovense monitoring is waiting for the desktop app/);
+  assert.match(source, /createMonitorRetry/);
+  assert.match(source, /await startWatching\(\);/);
+  assert.match(source, /Waiting for Lovense Remote\. The Assistant will retry automatically/);
 });

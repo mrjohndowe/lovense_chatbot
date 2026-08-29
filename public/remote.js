@@ -62,12 +62,23 @@ function reviewCard(item) {
 function render(data) {
   state.data = data;
   const connection = document.querySelector('#connection');
-  connection.classList.toggle('connected', data.connected);
-  connection.classList.toggle('disconnected', !data.connected);
-  connection.querySelector('strong').textContent = data.connected ? 'Lovense connected' : 'Lovense unavailable';
+  const waitingForLovense = data.monitorRequested && !data.watching;
+  connection.classList.toggle('connected', data.watching);
+  connection.classList.toggle('disconnected', !data.watching);
+  connection.querySelector('strong').textContent = data.connected
+    ? 'Lovense connected'
+    : data.watching
+      ? 'Lovense connected — waiting for a chat'
+      : waitingForLovense
+        ? 'Waiting for Lovense Remote'
+        : 'Lovense monitor paused';
   document.querySelector('#conversation').textContent = data.activeConversation || 'No open conversation';
   document.querySelector('#provider').textContent = `${data.replyProvider} · ${data.replyModel}`;
-  document.querySelector('#monitor-detail').textContent = data.watching ? `Watching every ${Math.round(data.pollMs / 100) / 10} seconds` : 'Paused';
+  document.querySelector('#monitor-detail').textContent = data.watching
+    ? `Watching every ${Math.round(data.pollMs / 100) / 10} seconds`
+    : waitingForLovense
+      ? 'Waiting for Lovense Remote and retrying automatically'
+      : 'Paused';
   const autoButton = document.querySelector('#auto-send');
   autoButton.textContent = data.autoSend ? 'Disable automatic sending' : 'Enable automatic sending';
   autoButton.className = data.autoSend ? 'danger' : 'secondary';
@@ -76,8 +87,8 @@ function render(data) {
     : 'Disabled — every reply requires review.';
   document.querySelector('#send-mode').textContent = data.autoSend ? 'Automatic · armed' : 'Review required';
   document.querySelector('#send-notice-title').textContent = data.autoSend ? 'Automatic sending is armed.' : 'Automatic sending is off.';
-  document.querySelector('#start').disabled = data.watching;
-  document.querySelector('#stop').disabled = !data.watching;
+  document.querySelector('#start').disabled = data.watching || waitingForLovense;
+  document.querySelector('#stop').disabled = !data.watching && !waitingForLovense;
   showError(data.lastError || '');
   const active = data.reviews.filter(item => item.status === 'waiting' || item.status === 'drafted');
   queue.replaceChildren(...(active.length ? active.map(reviewCard) : [Object.assign(document.createElement('div'), { className: 'empty', textContent: 'No new incoming messages are waiting.' })]));

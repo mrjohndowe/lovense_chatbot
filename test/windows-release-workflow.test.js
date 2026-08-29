@@ -6,8 +6,7 @@ test('GitHub workflow builds and publishes the Windows executables from version 
   const workflow = await readFile(new URL('../.github/workflows/windows-release.yml', import.meta.url), 'utf8');
   assert.match(workflow, /runs-on: windows-latest/);
   assert.match(workflow, /run: npm test/);
-  assert.match(workflow, /run: npm run dist/);
+  assert.match(workflow, /run: npm run dist -- --publish onTag/);
   assert.match(workflow, /path: release\/\*\.exe/);
-  assert.match(workflow, /if: startsWith\(github\.ref, 'refs\/tags\/v'\)/);
-  assert.match(workflow, /gh release create/);
+  assert.match(workflow, /GH_TOKEN: \$\{\{ github\.token \}\}/);
 });

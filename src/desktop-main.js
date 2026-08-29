@@ -1,14 +1,18 @@
-import { app, BrowserWindow, globalShortcut, Menu, shell } from 'electron';
+import { app, BrowserWindow, dialog, globalShortcut, Menu, shell } from 'electron';
 import { spawn } from 'node:child_process';
+import electronUpdater from 'electron-updater';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ensureDesktopConfig } from './desktop-config.js';
+import { configureDesktopUpdater } from './desktop-updater.js';
 
 const appName = 'Lovense Remote Reply Assistant';
 const dashboardHost = '127.0.0.1';
 let mainWindow;
 let dashboardUrl;
 let lovenseToggleScriptPath;
+let desktopUpdater;
+const { autoUpdater } = electronUpdater;
 
 app.setName(appName);
 
@@ -75,7 +79,9 @@ function installMenu(configDirectory) {
       label: 'Help',
       submenu: [
         { label: 'Open settings folder', click: () => shell.openPath(configDirectory) },
-        { label: 'Open dashboard in browser', click: () => shell.openExternal(dashboardUrl) }
+        { label: 'Open dashboard in browser', click: () => shell.openExternal(dashboardUrl) },
+        { type: 'separator' },
+        { label: 'Check for updates', click: () => desktopUpdater?.checkForUpdates({ initiatedByUser: true }) }
       ]
     }
   ]);
@@ -124,6 +130,13 @@ if (!gotLock) {
     await import('./remote-server.js');
     await waitForDashboard(dashboardUrl);
     createWindow();
+    desktopUpdater = configureDesktopUpdater({
+      updater: autoUpdater,
+      app,
+      dialog,
+      getWindow: () => mainWindow
+    });
+    void desktopUpdater.checkForUpdates();
     if (!globalShortcut.register('Control+Alt+Shift+L', togglePairedWindows)) {
       console.warn('Ctrl+Alt+Shift+L is already in use. Use File > Hide or restore Lovense and Assistant instead.');
     }

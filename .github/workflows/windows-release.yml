@@ -30,7 +30,9 @@ jobs:
         run: npm test
 
       - name: Build installer and portable executable
-        run: npm run dist
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: npm run dist -- --publish onTag
 
       - name: Verify release executables
         shell: pwsh
@@ -46,11 +48,3 @@ jobs:
           path: release/*.exe
           if-no-files-found: error
           retention-days: 30
-
-      - name: Create GitHub Release and attach executables
-        if: startsWith(github.ref, 'refs/tags/v')
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ github.ref_name }}
-        shell: pwsh
-        run: gh release create $env:RELEASE_TAG release/*.exe --title $env:RELEASE_TAG --generate-notes

@@ -1,10 +1,15 @@
 {
   "name": "lovense-chatbot",
-  "version": "0.2.0",
+  "version": "0.0.2-5",
+  "buildVersion": "0.0.2.5",
   "private": true,
   "description": "A safety-first local chatbot controller for Lovense devices.",
   "type": "module",
   "main": "src/desktop-main.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mrjohndowe/lovense_chatbot.git"
+  },
   "scripts": {
     "start": "node src/remote-server.js",
     "dev": "node --watch src/remote-server.js",
@@ -19,10 +24,21 @@
     "electron": "37.3.1",
     "electron-builder": "26.0.12"
   },
+  "dependencies": {
+    "electron-updater": "6.6.2"
+  },
   "build": {
     "appId": "com.mrjohndowe.lovense-remote-reply-assistant",
     "productName": "Lovense Remote Reply Assistant",
     "asar": true,
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "mrjohndowe",
+        "repo": "lovense_chatbot",
+        "releaseType": "release"
+      }
+    ],
     "directories": {
       "output": "release"
     },

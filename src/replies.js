@@ -60,17 +60,19 @@ async function requestJson(url, options, fetchImpl) {
 
 export async function generateReply(config, message, fetchImpl = globalThis.fetch, options = {}) {
   const history = Array.isArray(options.history) ? options.history.slice(-config.conversationMemoryMessages) : [];
-  if (config.replyProvider === 'template') return compact(expandedTemplateReply(config, message, history), config.maxReplyChars);
+  const maxReplyChars = Number.isInteger(options.maxReplyChars) ? options.maxReplyChars : config.maxReplyChars;
+  if (config.replyProvider === 'template') return compact(expandedTemplateReply(config, message, history), maxReplyChars);
   const includeHistory = config.replyProvider === 'ollama' || config.sendMemoryToOpenAI;
-  const messages = [{ role: 'system', content: config.replySystemPrompt }, ...(includeHistory ? history : []), { role: 'user', content: String(message || '') }];
+  const systemPrompt = options.systemPrompt || config.replySystemPrompt;
+  const messages = [{ role: 'system', content: systemPrompt }, ...(includeHistory ? history : []), { role: 'user', content: String(message || '') }];
   if (config.replyProvider === 'ollama') {
     const headers = { 'content-type': 'application/json' };
     if (config.ollamaApiKey) headers.authorization = `Bearer ${config.ollamaApiKey}`;
     const body = await requestJson(`${config.ollamaUrl}/api/chat`, { method: 'POST', headers, body: JSON.stringify({ model: config.replyModel, messages, stream: false }) }, fetchImpl);
-    return compact(body.message?.content, config.maxReplyChars);
+    return compact(body.message?.content, maxReplyChars);
   }
   const body = await requestJson(`${config.openaiBaseUrl}/chat/completions`, { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${config.openaiApiKey}` }, body: JSON.stringify({ model: config.replyModel, messages, temperature: 0.7 }) }, fetchImpl);
-  return compact(body.choices?.[0]?.message?.content, config.maxReplyChars);
+  return compact(body.choices?.[0]?.message?.content, maxReplyChars);
 }
 
 export function createReplyDeduper(historyLimit = 100) {

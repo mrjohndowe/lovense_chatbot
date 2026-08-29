@@ -197,6 +197,18 @@ test('does not send an authorization header to local Ollama without a key', asyn
   assert.equal(requestOptions.headers.authorization, undefined);
 });
 
+test('uses per-request studio instructions and length caps for a model reply', async () => {
+  let requestBody;
+  const fetchImpl = async (_url, options) => {
+    requestBody = JSON.parse(options.body);
+    return { ok: true, json: async () => ({ choices: [{ message: { content: 'A tailored reply' } }] }) };
+  };
+  const config = loadRemoteConfig({ REPLY_PROVIDER: 'openai', OPENAI_API_KEY: 'test' });
+  const reply = await generateReply(config, 'Manual message', fetchImpl, { systemPrompt: 'Studio rule: write 12 to 20 words.', maxReplyChars: 200 });
+  assert.equal(reply, 'A tailored reply');
+  assert.equal(requestBody.messages[0].content, 'Studio rule: write 12 to 20 words.');
+});
+
 test('answers casual reciprocal questions instead of using a generic question reply', async () => {
   const config = loadRemoteConfig({});
   const reply = await generateReply(config, 'Just chilling, hbu?', globalThis.fetch, { history: [

@@ -156,6 +156,21 @@ async function monitor(action) {
   catch (error) { showError(error.message); }
 }
 
+function replyStudioPayload() {
+  return {
+    message: document.querySelector('#studio-message').value.trim(),
+    settings: {
+      minWords: Number(document.querySelector('#studio-min-words').value),
+      maxWords: Number(document.querySelector('#studio-max-words').value),
+      responseLength: document.querySelector('#studio-length').value,
+      persona: document.querySelector('#studio-persona').value.trim(),
+      relationship: document.querySelector('#studio-relationship').value.trim(),
+      tone: document.querySelector('#studio-tone').value.trim(),
+      dominance: document.querySelector('#studio-dominance').value
+    }
+  };
+}
+
 queue.addEventListener('click', async event => {
   const button = event.target.closest('button[data-action]');
   if (!button) return;
@@ -177,6 +192,25 @@ queue.addEventListener('click', async event => {
 document.querySelector('#start').addEventListener('click', () => monitor('start'));
 document.querySelector('#stop').addEventListener('click', () => monitor('stop'));
 document.querySelector('#refresh').addEventListener('click', refresh);
+document.querySelector('#studio-generate').addEventListener('click', async () => {
+  const button = document.querySelector('#studio-generate');
+  const status = document.querySelector('#studio-status');
+  const output = document.querySelector('#studio-output');
+  const payload = replyStudioPayload();
+  if (!payload.message) { status.textContent = 'Enter a message first.'; document.querySelector('#studio-message').focus(); return; }
+  if (!Number.isInteger(payload.settings.minWords) || !Number.isInteger(payload.settings.maxWords) || payload.settings.minWords < 1 || payload.settings.maxWords > 250 || payload.settings.minWords > payload.settings.maxWords) {
+    status.textContent = 'Choose whole-number word limits from 1 to 250, with the minimum no higher than the maximum.';
+    return;
+  }
+  button.disabled = true;
+  status.textContent = 'Generating preview…';
+  try {
+    const data = await request('/api/reply-studio/generate', { method: 'POST', body: JSON.stringify(payload) });
+    output.value = data.reply;
+    status.textContent = `Generated with ${data.provider}. Nothing was sent or queued.`;
+  } catch (error) { status.textContent = error.message; }
+  finally { button.disabled = false; }
+});
 document.querySelector('#toy-enable').addEventListener('click', async () => {
   const enabling = !state.toy?.enabled;
   if (enabling && !window.confirm(`Enable manual controls for ${state.toy?.name || 'this toy'}?`)) return;

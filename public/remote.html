@@ -37,6 +37,23 @@
       <article class="card"><p class="label">Send mode</p><strong id="send-mode">Review required</strong></article>
     </section>
 
+    <section class="reply-studio card" aria-labelledby="reply-studio-title">
+      <div class="section-heading"><div><p class="eyebrow">REPLY STUDIO</p><h2 id="reply-studio-title">Generate from a manual message</h2><p class="studio-description">This preview does not use captured chat history, queue a reply, or send anything to Lovense.</p></div></div>
+      <div class="studio-grid">
+        <label class="studio-wide">Message to reply to<textarea id="studio-message" maxlength="4000" placeholder="Paste or type the message you want to answer…"></textarea></label>
+        <label>Minimum words<input id="studio-min-words" type="number" min="1" max="250" value="8" inputmode="numeric"></label>
+        <label>Maximum words<input id="studio-max-words" type="number" min="1" max="250" value="60" inputmode="numeric"></label>
+        <label>Response length<select id="studio-length"><option value="very short">Very short</option><option value="short">Short</option><option value="medium" selected>Medium</option><option value="long">Long</option><option value="detailed">Detailed</option></select></label>
+        <label>Dominance style<select id="studio-dominance"><option value="balanced" selected>Balanced</option><option value="soft and reassuring">Soft and reassuring</option><option value="confident">Confident</option><option value="playfully dominant">Playfully dominant</option><option value="firm, only where clearly invited">Firm, when invited</option></select></label>
+        <label class="studio-wide">Persona and demographics <small>Optional: adult age, pronouns, background, interests, or viewpoint to portray.</small><input id="studio-persona" maxlength="500" placeholder="Example: 32, she/her, outdoorsy Denver designer who values direct communication"></label>
+        <label>Conversation dynamic / relationship style<input id="studio-relationship" maxlength="300" placeholder="Example: new dating, warm but taking it slow"></label>
+        <label>Tone<input id="studio-tone" maxlength="200" placeholder="Example: warm, witty, lightly flirty"></label>
+      </div>
+      <div class="studio-actions"><button id="studio-generate" type="button">Generate preview</button><span id="studio-status" class="muted" role="status"></span></div>
+      <label class="studio-output-label" for="studio-output">Generated reply preview</label>
+      <textarea id="studio-output" readonly placeholder="Your generated reply will appear here."></textarea>
+    </section>
+
     <section class="queue-section">
       <div class="section-heading"><div><p class="eyebrow">INBOX</p><h2>Replies waiting for review</h2></div><button id="refresh" class="secondary" type="button">Refresh</button></div>
       <div id="error" class="error hidden"></div>

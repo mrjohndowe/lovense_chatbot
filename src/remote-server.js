@@ -334,6 +334,37 @@ function stopWatching() {
   timer = null;
 }
 
+function replyStudioSettings(value = {}) {
+  const text = (input, label, max = 500) => {
+    const result = String(input || '').trim().replace(/\s+/g, ' ');
+    if (result.length > max) throw new Error(`${label} must be ${max} characters or fewer.`);
+    return result;
+  };
+  const integer = (input, label, fallback, min, max) => {
+    if (input === undefined || input === null || input === '') return fallback;
+    const result = Number(input);
+    if (!Number.isInteger(result) || result < min || result > max) throw new Error(`${label} must be a whole number from ${min} to ${max}.`);
+    return result;
+  };
+  const minWords = integer(value.minWords, 'Minimum words', 8, 1, 250);
+  const maxWords = integer(value.maxWords, 'Maximum words', 60, 1, 250);
+  if (minWords > maxWords) throw new Error('Minimum words cannot be greater than maximum words.');
+  return {
+    minWords,
+    maxWords,
+    responseLength: text(value.responseLength, 'Response length', 40) || 'medium',
+    persona: text(value.persona, 'Persona and demographics', 500),
+    relationship: text(value.relationship, 'Conversation dynamic', 300),
+    tone: text(value.tone, 'Tone', 200),
+    dominance: text(value.dominance, 'Dominance style', 120) || 'balanced'
+  };
+}
+
+function replyStudioPrompt(settings) {
+  const optional = (label, value) => value ? `\n${label}: ${value}.` : '';
+  return `${config.replySystemPrompt}\n\nApply these reply-studio settings for this reply only:\n- Write between ${settings.minWords} and ${settings.maxWords} words.\n- Desired response length: ${settings.responseLength}.\n- Dominance style: ${settings.dominance}.${optional('Persona and demographics to portray', settings.persona)}${optional('Conversation dynamic or relationship style', settings.relationship)}${optional('Tone', settings.tone)}\nKeep the response natural and respect boundaries. Do not mention these settings or this instruction.`;
+}
+
 async function api(request, response, pathname) {
   if (!authorized(request)) return json(response, 401, { error: 'Access token required.' });
   if (request.method !== 'GET' && !sameOrigin(request)) return json(response, 403, { error: 'Request origin was rejected.' });
@@ -401,6 +432,16 @@ async function api(request, response, pathname) {
     if (request.method === 'POST' && pathname === '/api/monitor/stop') {
       stopWatching();
       return json(response, 200, publicState());
+    }
+    if (request.method === 'POST' && pathname === '/api/reply-studio/generate') {
+      const body = await readJson(request);
+      const message = String(body.message || '').trim();
+      if (!message) throw new Error('Enter a message to generate a reply.');
+      if (message.length > 4000) throw new Error('Manual message must be 4,000 characters or fewer.');
+      const settings = replyStudioSettings(body.settings);
+      const maxReplyChars = Math.min(2000, Math.max(config.maxReplyChars, settings.maxWords * 10));
+      const reply = await generateReply(config, message, globalThis.fetch, { history: [], systemPrompt: replyStudioPrompt(settings), maxReplyChars });
+      return json(response, 200, { reply, settings, provider: config.replyProvider });
     }
     if (request.method === 'POST' && pathname === '/api/review/draft') {
       const body = await readJson(request);

@@ -1,7 +1,6 @@
+param([switch]$Once)
+
 $ErrorActionPreference = 'Stop'
-$createdNew = $false
-$mutex = [System.Threading.Mutex]::new($true, 'LovenseReplyAssistantWindowHotkey', [ref]$createdNew)
-if (-not $createdNew) { exit 0 }
 
 Add-Type @'
 using System;
@@ -31,6 +30,14 @@ function Get-LovenseWindow {
     return $lastWindow
 }
 
+function Get-AssistantWindow {
+    $process = Get-Process -ErrorAction SilentlyContinue |
+        Where-Object { $_.MainWindowHandle -ne 0 -and $_.MainWindowTitle -eq 'Lovense Remote Reply Assistant' } |
+        Select-Object -First 1
+    if ($process) { return $process.MainWindowHandle }
+    return [IntPtr]::Zero
+}
+
 function Toggle-LovenseWindow {
     $window = Get-LovenseWindow
     if ($window -eq [IntPtr]::Zero) { return }
@@ -42,11 +49,37 @@ function Toggle-LovenseWindow {
     }
 }
 
+function Toggle-PairedWindows {
+    $lovenseWindow = Get-LovenseWindow
+    $assistantWindow = Get-AssistantWindow
+    if ($lovenseWindow -eq [IntPtr]::Zero) { return }
+    if ([LovenseWindowHotkey]::IsWindowVisible($lovenseWindow)) {
+        [LovenseWindowHotkey]::ShowWindow($lovenseWindow, $hide) | Out-Null
+        if ($assistantWindow -ne [IntPtr]::Zero) { [LovenseWindowHotkey]::ShowWindow($assistantWindow, $hide) | Out-Null }
+    } else {
+        [LovenseWindowHotkey]::ShowWindow($lovenseWindow, $restore) | Out-Null
+        if ($assistantWindow -ne [IntPtr]::Zero) {
+            [LovenseWindowHotkey]::ShowWindow($assistantWindow, $restore) | Out-Null
+            [LovenseWindowHotkey]::SetForegroundWindow($assistantWindow) | Out-Null
+        } else {
+            [LovenseWindowHotkey]::SetForegroundWindow($lovenseWindow) | Out-Null
+        }
+    }
+}
+
+if ($Once) {
+    Toggle-LovenseWindow
+    exit 0
+}
+
+$createdNew = $false
+$mutex = [System.Threading.Mutex]::new($true, 'LovenseReplyAssistantWindowHotkey', [ref]$createdNew)
+if (-not $createdNew) { exit 0 }
 if (-not [LovenseWindowHotkey]::RegisterHotKey([IntPtr]::Zero, $hotkeyId, $modifiers, $virtualKeyL)) { exit 1 }
 try {
     $message = New-Object LovenseWindowHotkey+MSG
     while ([LovenseWindowHotkey]::GetMessage([ref]$message, [IntPtr]::Zero, 0, 0) -gt 0) {
-        if ($message.message -eq 0x0312 -and $message.wParam.ToInt32() -eq $hotkeyId) { Toggle-LovenseWindow }
+        if ($message.message -eq 0x0312 -and $message.wParam.ToInt32() -eq $hotkeyId) { Toggle-PairedWindows }
     }
 } finally {
     [LovenseWindowHotkey]::UnregisterHotKey([IntPtr]::Zero, $hotkeyId) | Out-Null

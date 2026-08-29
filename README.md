@@ -39,11 +39,15 @@ npm run dist
 
 The resulting x64 installer and portable executable are written under `release`. The installer adds Start menu and desktop shortcuts. The portable executable can be copied to another Windows computer; it still requires that computer's Lovense Remote installation.
 
+### Build releases on GitHub
+
+GitHub Actions builds the Windows executables on a hosted Windows runner. Run **Build Windows release** manually from the repository’s **Actions** tab to test a build and download its two `.exe` files as a workflow artifact. To publish them as a GitHub Release, push a version tag beginning with `v`; the workflow installs the dependencies, runs the automated tests, builds the installer and portable executable, verifies both exist, then attaches them to the new Release.
+
 At first launch, the packaged application creates its private settings file at `%APPDATA%\Lovense Remote Reply Assistant\config.ini` from the fully commented example. It keeps the same AES-256-GCM encrypted credential fields and never writes a plaintext Lovense password. The **Settings** page writes to that per-user file, and **Saved conversations** remains in-memory only for the current run.
 
 During development, `npm run desktop` opens the same desktop shell and makes a one-time copy of an existing repository `config.ini` into the per-user application folder, preserving local settings and encrypted fields. It never overwrites that per-user configuration. To use fresh defaults, delete only `%APPDATA%\Lovense Remote Reply Assistant\config.ini` while the app is closed, then launch it again.
 
-The app starts the existing local service at `127.0.0.1` and displays the current Reply dashboard, Settings, and Saved conversations pages in its own window. Its Help menu can open the settings folder or the local dashboard in a browser. Closing the desktop window exits the assistant; Lovense Remote is left running.
+The app starts the existing local service at `127.0.0.1` and displays the current Reply dashboard, Settings, and Saved conversations pages in its own window. Its Help menu can open the settings folder or the local dashboard in a browser. Press **Ctrl+Alt+Shift+L** (or use the File menu) to hide or restore both Lovense Remote and the desktop Assistant together. Closing the desktop window exits the assistant; Lovense Remote is left running.
 
 ### Desktop architecture
 
@@ -104,7 +108,7 @@ When started through `scripts/start-personal.ps1`, press **Ctrl+Alt+Shift+L** to
 
 1. Open the Lovense conversation you want monitored.
 2. Start the personal launcher.
-3. Existing visible messages are used as a baseline and are not answered.
+3. Existing visible messages are used as a baseline. If automatic replies are armed and the latest real text is incoming with no later outgoing text, the unanswered incoming tail is safely caught up and submitted after the normal delay.
 4. Leave that conversation selected while monitoring it.
 5. When a new incoming text arrives, review the proposed reply in the localhost dashboard.
 6. Choose one action:
@@ -120,7 +124,7 @@ Lovense Remote does not need to be the active Windows window. It may remain behi
 
 Automatic sending is off by default. Enable it from the localhost dashboard after opening the intended Lovense conversation. When armed, the assistant:
 
-1. Detects a new incoming text message.
+1. Detects a new incoming text message, or an already-visible incoming text tail that has no later outgoing reply when monitoring starts, the conversation changes, or automatic sending is enabled.
 2. Generates a reply.
 3. Waits a randomized reaction delay.
 4. Adds simulated typing time based on reply length.

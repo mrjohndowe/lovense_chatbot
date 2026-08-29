@@ -29,8 +29,12 @@
     "files": [
       "src/**/*",
       "public/**/*",
+      "scripts/toggle-lovense-window.ps1",
       "config.example.ini",
       "package.json"
+    ],
+    "asarUnpack": [
+      "scripts/toggle-lovense-window.ps1"
     ],
     "win": {
       "target": [

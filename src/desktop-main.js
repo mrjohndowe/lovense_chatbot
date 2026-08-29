@@ -1,4 +1,5 @@
-import { app, BrowserWindow, Menu, shell } from 'electron';
+import { app, BrowserWindow, globalShortcut, Menu, shell } from 'electron';
+import { spawn } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ensureDesktopConfig } from './desktop-config.js';
@@ -7,6 +8,7 @@ const appName = 'Lovense Remote Reply Assistant';
 const dashboardHost = '127.0.0.1';
 let mainWindow;
 let dashboardUrl;
+let lovenseToggleScriptPath;
 
 app.setName(appName);
 
@@ -40,12 +42,31 @@ function createWindow() {
   mainWindow.loadURL(dashboardUrl);
 }
 
+function toggleLovenseWindow() {
+  return new Promise((resolve, reject) => {
+    const child = spawn('powershell.exe', [
+      '-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
+      '-File', lovenseToggleScriptPath, '-Once'
+    ], { windowsHide: true, stdio: 'ignore' });
+    child.once('error', error => reject(error));
+    child.once('close', code => code === 0 ? resolve() : reject(new Error('Lovense window toggle did not complete.')));
+  });
+}
+
+function togglePairedWindows() {
+  const hideAssistant = Boolean(mainWindow && !mainWindow.isDestroyed() && mainWindow.isVisible());
+  if (hideAssistant) mainWindow.hide();
+  else createWindow();
+  toggleLovenseWindow().catch(error => console.warn(`Could not toggle the Lovense window: ${error.message}`));
+}
+
 function installMenu(configDirectory) {
   const menu = Menu.buildFromTemplate([
     {
       label: 'File',
       submenu: [
         { label: 'Show dashboard', accelerator: 'Ctrl+Shift+R', click: createWindow },
+        { label: 'Hide or restore Lovense and Assistant', accelerator: 'Ctrl+Alt+Shift+L', click: togglePairedWindows },
         { type: 'separator' },
         { role: 'quit', label: 'Exit Reply Assistant' }
       ]
@@ -84,6 +105,9 @@ if (!gotLock) {
   app.whenReady().then(async () => {
     app.setAppUserModelId('com.mrjohndowe.lovense-remote-reply-assistant');
     const exampleConfigPath = fileURLToPath(new URL('../config.example.ini', import.meta.url));
+    lovenseToggleScriptPath = app.isPackaged
+      ? path.join(process.resourcesPath, 'app.asar.unpacked', 'scripts', 'toggle-lovense-window.ps1')
+      : fileURLToPath(new URL('../scripts/toggle-lovense-window.ps1', import.meta.url));
     const repositoryConfigPath = path.join(process.cwd(), 'config.ini');
     const userDataPath = app.getPath('userData');
     const result = await ensureDesktopConfig({
@@ -100,10 +124,14 @@ if (!gotLock) {
     await import('./remote-server.js');
     await waitForDashboard(dashboardUrl);
     createWindow();
+    if (!globalShortcut.register('Control+Alt+Shift+L', togglePairedWindows)) {
+      console.warn('Ctrl+Alt+Shift+L is already in use. Use File > Hide or restore Lovense and Assistant instead.');
+    }
     if (result.created) console.log(`Desktop settings ${result.migrated ? 'migrated' : 'created'} at ${result.configPath}`);
   }).catch(error => {
     console.error(`${appName} could not start: ${error.stack || error.message}`);
     app.quit();
   });
+  app.on('will-quit', () => globalShortcut.unregister('Control+Alt+Shift+L'));
   app.on('window-all-closed', () => app.quit());
 }

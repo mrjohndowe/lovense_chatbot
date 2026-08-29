@@ -8,6 +8,7 @@ import { loadPersonalConfig } from './ini-config.js';
 import { RemoteChatBridge, fingerprint } from './remote-chat.js';
 import { createFollowUpTracker } from './follow-up.js';
 import { createReplyDeduper, generateReply } from './replies.js';
+import { unrepliedIncomingText } from './reply-catchup.js';
 import { chooseRandomToyControl, randomDelayMs } from './toy-random.js';
 import { readDashboardSettings, saveDashboardSettings } from './config-editor.js';
 import { decryptSecret } from './secret-crypto.js';
@@ -37,6 +38,7 @@ let randomToyEnabled = false;
 let randomToyTimer = null;
 let nextRandomToyChangeAt = null;
 let lastRandomControl = null;
+let catchUpRequested = false;
 const autoTimers = new Map();
 
 function json(response, status, data) {
@@ -273,10 +275,11 @@ async function sweepPeriodicFollowUps(originalConversation, { eligible = true } 
   return followUpQueued;
 }
 
-async function scan({ baseline = false } = {}) {
+async function scan({ baseline = false, catchUp = false } = {}) {
   if (scanning) return;
   scanning = true;
   try {
+    const requestedCatchUp = catchUp || catchUpRequested;
     let unreadTarget = null;
     const replyInProgress = reviews.some(item => item.status === 'waiting' || item.status === 'drafted');
     if (config.autoSwitchUnreadChats && autoSend && !replyInProgress) {
@@ -304,9 +307,15 @@ async function scan({ baseline = false } = {}) {
       for (const item of keyed) seen.add(item.key);
       await processFreshMessages(snapshot, fresh);
       processedFresh = fresh.length > 0;
-    } else if (baseline || conversationChanged) {
-      seedConversationMemory(snapshot.conversation, snapshot.messages);
+    } else if (baseline || conversationChanged || requestedCatchUp) {
+      const unanswered = autoSend && !replyInProgress ? unrepliedIncomingText(snapshot.messages) : [];
+      const unansweredIndexes = new Set(unanswered.map(item => item.index));
+      seedConversationMemory(snapshot.conversation, snapshot.messages.filter(item => !unansweredIndexes.has(item.index)));
       for (const item of keyed) seen.add(item.key);
+      if (unanswered.length) {
+        await processFreshMessages(snapshot, unanswered, { source: 'unreplied-catch-up' });
+        processedFresh = true;
+      }
     } else {
       const fresh = keyed.filter(item => !seen.has(item.key));
       for (const item of fresh) seen.add(item.key);
@@ -316,6 +325,7 @@ async function scan({ baseline = false } = {}) {
 
     lastScanAt = new Date().toISOString();
     lastError = '';
+    if (requestedCatchUp) catchUpRequested = false;
   } catch (error) {
     activeConversation = '';
     lastError = error.message;
@@ -451,6 +461,10 @@ async function api(request, response, pathname) {
         for (const timeout of autoTimers.values()) clearTimeout(timeout);
         autoTimers.clear();
         for (const item of reviews) item.scheduledFor = null;
+      }
+      if (autoSend && watching) {
+        catchUpRequested = true;
+        await scan({ catchUp: true });
       }
       return json(response, 200, publicState());
     }

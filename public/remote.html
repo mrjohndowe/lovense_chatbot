@@ -23,7 +23,7 @@
       <button id="auto-send" class="secondary" type="button">Enable automatic sending</button>
     </section>
 
-    <section class="toy-card card">
+    <section class="toy-card card" hidden>
       <div class="toy-heading">
         <div><p class="label">Chat partner's Live Control · one toy at a time</p><h2 id="toy-name">No accepted toy session</h2><p id="toy-detail">Open Live Control in the chat and wait for the other user to accept.</p></div>
         <div class="button-row"><button id="toy-enable" class="secondary" type="button" disabled>Enable toy controls</button><button id="toy-random" class="secondary" type="button" disabled>Start Random</button><button id="toy-stop" class="danger" type="button" disabled>Stop toy</button></div>
@@ -35,6 +35,38 @@
       <article class="card"><p class="label">Open conversation</p><strong id="conversation">None</strong></article>
       <article class="card"><p class="label">Reply engine</p><strong id="provider">—</strong></article>
       <article class="card"><p class="label">Send mode</p><strong id="send-mode">Review required</strong></article>
+    </section>
+
+    <section class="settings card" aria-labelledby="settings-title">
+      <div class="section-heading"><div><p class="eyebrow">SETTINGS</p><h2 id="settings-title">Identity and reply configuration</h2><p class="studio-description">Save the details the bot should use when answering questions. These values are written directly to your private <code>config.ini</code>; access tokens and API keys are never shown here.</p></div><button id="settings-reload" class="secondary" type="button">Reload settings</button></div>
+      <form id="settings-form">
+        <h3>Identity and demographics</h3>
+        <div class="studio-grid">
+          <label>Username<input data-setting="CHAT_USERNAME" maxlength="200"></label>
+          <label>Display name<input data-setting="CHAT_DISPLAY_NAME" maxlength="200"></label>
+          <label>First name<input data-setting="CHAT_FIRST_NAME" maxlength="200"></label>
+          <label>Last name<input data-setting="CHAT_LAST_NAME" maxlength="200"></label>
+          <label>Date of birth <small>MM/DD/YYYY; leave blank to keep private.</small><input data-setting="CHAT_DATE_OF_BIRTH" maxlength="10" placeholder="MM/DD/YYYY"></label>
+          <label>Age <small>18–120; leave blank to keep private.</small><input data-setting="CHAT_AGE" type="number" min="18" max="120"></label>
+          <label>Pronouns<input data-setting="CHAT_PRONOUNS" maxlength="100"></label>
+          <label>General location <small>Never enter a street address.</small><input data-setting="CHAT_LOCATION" maxlength="200"></label>
+          <label>Place of birth<input data-setting="CHAT_PLACE_OF_BIRTH" maxlength="200"></label>
+          <label>Occupation<input data-setting="CHAT_OCCUPATION" maxlength="300"></label>
+          <label>Relationship status<input data-setting="CHAT_RELATIONSHIP_STATUS" maxlength="200"></label>
+          <label>Children <small>Use only a general, non-identifying answer.</small><input data-setting="CHAT_CHILDREN" maxlength="300"></label>
+          <label class="studio-wide">Interests<input data-setting="CHAT_INTERESTS" maxlength="500" placeholder="Example: reading, hiking, cooking"></label>
+        </div>
+        <h3>Reply generation</h3>
+        <div class="studio-grid">
+          <label>Reply provider<select data-setting="REPLY_PROVIDER"><option value="template">Local template</option><option value="ollama">Ollama</option><option value="openai">OpenAI</option></select></label>
+          <label>Model<input data-setting="REPLY_MODEL" maxlength="200" placeholder="Example: llama3.2"></label>
+          <label>Maximum reply characters<input data-setting="MAX_REPLY_CHARS" type="number" min="20" max="2000"></label>
+          <label>Conversation memory messages<input data-setting="CONVERSATION_MEMORY_MESSAGES" type="number" min="2" max="100"></label>
+          <label>Send memory to OpenAI<select data-setting="SEND_MEMORY_TO_OPENAI"><option value="false">No</option><option value="true">Yes</option></select></label>
+          <label class="studio-wide">System prompt <small>Used by Ollama and OpenAI only. Keep it on one line.</small><textarea data-setting="REPLY_SYSTEM_PROMPT" maxlength="4000"></textarea></label>
+        </div>
+        <div class="studio-actions"><button type="submit">Save settings to config.ini</button><span id="settings-status" class="muted" role="status"></span></div>
+      </form>
     </section>
 
     <section class="reply-studio card" aria-labelledby="reply-studio-title">

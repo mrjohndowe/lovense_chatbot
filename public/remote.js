@@ -156,6 +156,19 @@ async function monitor(action) {
   catch (error) { showError(error.message); }
 }
 
+function settingsValues() {
+  return Object.fromEntries([...document.querySelectorAll('[data-setting]')].map(input => [input.dataset.setting, input.value.trim()]));
+}
+
+async function loadSettings() {
+  const status = document.querySelector('#settings-status');
+  try {
+    const { settings } = await request('/api/settings');
+    for (const input of document.querySelectorAll('[data-setting]')) input.value = settings[input.dataset.setting] || '';
+    status.textContent = 'Loaded from config.ini.';
+  } catch (error) { status.textContent = error.message; }
+}
+
 function replyStudioPayload() {
   return {
     message: document.querySelector('#studio-message').value.trim(),
@@ -192,6 +205,19 @@ queue.addEventListener('click', async event => {
 document.querySelector('#start').addEventListener('click', () => monitor('start'));
 document.querySelector('#stop').addEventListener('click', () => monitor('stop'));
 document.querySelector('#refresh').addEventListener('click', refresh);
+document.querySelector('#settings-reload').addEventListener('click', loadSettings);
+document.querySelector('#settings-form').addEventListener('submit', async event => {
+  event.preventDefault();
+  const button = event.currentTarget.querySelector('button[type="submit"]');
+  const status = document.querySelector('#settings-status');
+  button.disabled = true;
+  status.textContent = 'Saving…';
+  try {
+    const data = await request('/api/settings', { method: 'POST', body: JSON.stringify({ settings: settingsValues() }) });
+    status.textContent = data.message;
+  } catch (error) { status.textContent = error.message; }
+  finally { button.disabled = false; }
+});
 document.querySelector('#studio-generate').addEventListener('click', async () => {
   const button = document.querySelector('#studio-generate');
   const status = document.querySelector('#studio-status');
@@ -235,6 +261,7 @@ document.querySelector('#toy-random').addEventListener('click', async () => {
   } catch (error) { showError(error.message); }
 });
 refresh();
+loadSettings();
 setInterval(refresh, 2500);
 
 

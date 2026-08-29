@@ -4,10 +4,12 @@ import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { constantTimeEqual } from './policy.js';
 import { loadRemoteConfig } from './remote-config.js';
+import { loadPersonalConfig } from './ini-config.js';
 import { RemoteChatBridge, fingerprint } from './remote-chat.js';
 import { createFollowUpTracker } from './follow-up.js';
 import { createReplyDeduper, generateReply } from './replies.js';
 import { chooseRandomToyControl, randomDelayMs } from './toy-random.js';
+import { readDashboardSettings, saveDashboardSettings } from './config-editor.js';
 
 const config = loadRemoteConfig();
 const bridge = new RemoteChatBridge({ debugUrl: config.debugUrl, targetUrlIncludes: '/index.html' });
@@ -370,6 +372,13 @@ async function api(request, response, pathname) {
   if (request.method !== 'GET' && !sameOrigin(request)) return json(response, 403, { error: 'Request origin was rejected.' });
   try {
     if (request.method === 'GET' && pathname === '/api/status') return json(response, 200, publicState());
+    if (request.method === 'GET' && pathname === '/api/settings') return json(response, 200, { settings: await readDashboardSettings() });
+    if (request.method === 'POST' && pathname === '/api/settings') {
+      const body = await readJson(request);
+      const settings = await saveDashboardSettings(body.settings, { validate: values => loadRemoteConfig(values) });
+      Object.assign(config, loadRemoteConfig(loadPersonalConfig()));
+      return json(response, 200, { settings, message: 'Saved to config.ini. New reply settings apply immediately.' });
+    }
     if (request.method === 'GET' && pathname === '/api/toys') return json(response, 200, await toyState());
     if (request.method === 'POST' && pathname === '/api/toys/enable') {
       const body = await readJson(request);

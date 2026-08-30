@@ -14,11 +14,13 @@ import { readDashboardSettings, saveDashboardSettings } from './config-editor.js
 import { decryptSecret } from './secret-crypto.js';
 import { ensureLovenseRemote } from './remote-launcher.js';
 import { createMonitorRetry } from './monitor-retry.js';
+import { ConversationMediaStore } from './conversation-media.js';
 
 const config = loadRemoteConfig();
 const bridge = new RemoteChatBridge({ debugUrl: config.debugUrl, targetUrlIncludes: '/index.html' });
 const toyBridge = new RemoteChatBridge({ debugUrl: config.debugUrl, targetUrlIncludes: '/window.html' });
 const publicDir = fileURLToPath(new URL('../public/', import.meta.url));
+const mediaStore = new ConversationMediaStore({ directory: join(process.cwd(), 'conversation-media') });
 const seen = new Set();
 const dedupeReply = createReplyDeduper();
 const conversationMemories = new Map();
@@ -42,6 +44,8 @@ let nextRandomToyChangeAt = null;
 let lastRandomControl = null;
 let catchUpRequested = false;
 const autoTimers = new Map();
+const savedMediaKeys = new Set();
+const mediaRetryAt = new Map();
 
 function json(response, status, data) {
   response.writeHead(status, {
@@ -245,6 +249,28 @@ async function processFreshMessages(snapshot, fresh, { source = 'incoming' } = {
   while (reviews.length > 20) reviews.shift();
 }
 
+async function saveConversationImages(snapshot) {
+  for (const item of snapshot.messages.filter(message => message.imageSrc && (message.direction === 'incoming' || message.direction === 'outgoing'))) {
+    const key = fingerprint(snapshot.conversation, `${item.index}\0${item.imageSrc}`);
+    if (savedMediaKeys.has(key) || (mediaRetryAt.get(key) || 0) > Date.now()) continue;
+    try {
+      const dataUrl = await bridge.imageDataUrl(item.imageSrc);
+      await mediaStore.save({
+        conversation: snapshot.conversation,
+        messageKey: key,
+        direction: item.direction,
+        messageIndex: item.index,
+        dataUrl
+      });
+      savedMediaKeys.add(key);
+      mediaRetryAt.delete(key);
+    } catch (error) {
+      mediaRetryAt.set(key, Date.now() + 60_000);
+      console.warn(`Could not save a Lovense conversation image: ${error.message}`);
+    }
+  }
+}
+
 async function sweepPeriodicFollowUps(originalConversation, { eligible = true } = {}) {
   const contacts = await bridge.conversations();
   let followUpQueued = false;
@@ -300,6 +326,7 @@ async function scan({ baseline = false, catchUp = false } = {}) {
     const snapshot = await bridge.snapshot();
     const conversationChanged = snapshot.conversation !== activeConversation;
     activeConversation = snapshot.conversation;
+    await saveConversationImages(snapshot);
     const incoming = snapshot.messages.filter(item => item.direction === 'incoming' && item.type === 'text' && item.text);
     const keyed = incoming.map(item => ({ ...item, key: fingerprint(snapshot.conversation, `${item.index}\0${item.text}`) }));
     let processedFresh = false;
@@ -347,6 +374,17 @@ async function beginWatching() {
   await scan({ baseline: true });
   timer = setInterval(scan, config.pollMs);
   timer.unref();
+}
+
+function media(response, image) {
+  response.writeHead(200, {
+    'content-type': image.mime,
+    'content-length': image.data.length,
+    'cache-control': 'no-store',
+    'x-content-type-options': 'nosniff',
+    'content-security-policy': "default-src 'none'; frame-ancestors 'none'"
+  });
+  response.end(image.data);
 }
 
 async function startWatching() {
@@ -419,6 +457,12 @@ async function api(request, response, pathname) {
   try {
     if (request.method === 'GET' && pathname === '/api/status') return json(response, 200, publicState());
     if (request.method === 'GET' && pathname === '/api/conversations') return json(response, 200, { conversations: publicConversations() });
+    if (request.method === 'GET' && pathname === '/api/media') return json(response, 200, { media: await mediaStore.list() });
+    if (request.method === 'GET' && pathname.startsWith('/api/media/')) {
+      const id = pathname.slice('/api/media/'.length);
+      if (!/^[a-f0-9]{64}$/i.test(id)) return json(response, 404, { error: 'Saved image was not found.' });
+      return media(response, await mediaStore.read(id));
+    }
     if (request.method === 'GET' && pathname === '/api/settings') return json(response, 200, { settings: await readDashboardSettings() });
     if (request.method === 'POST' && pathname === '/api/settings') {
       const body = await readJson(request);

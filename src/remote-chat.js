@@ -87,8 +87,8 @@ export class RemoteChatBridge {
     });
   }
 
-  async evaluate(expression) {
-    const result = await this.command('Runtime.evaluate', { expression, returnByValue: true });
+  async evaluate(expression, { awaitPromise = false } = {}) {
+    const result = await this.command('Runtime.evaluate', { expression, returnByValue: true, awaitPromise });
     return result?.result?.value;
   }
 
@@ -211,7 +211,9 @@ export class RemoteChatBridge {
         const direction=row.classList.contains('left')?'incoming':row.classList.contains('right')?'outgoing':'notice';
         const textNode=direction==='incoming'?row.querySelector('.msg.friend-msg:not(.messageImage-box)'):row.querySelector('.msg:not(.friend-msg):not(.messageImage-box)');
         const text=tidy(textNode?.innerText);
-        return {index,direction,type:text?'text':'non-text',text};
+        const image=row.querySelector('img');
+        const imageSrc=String(image?.currentSrc||image?.src||'');
+        return {index,direction,type:text?'text':imageSrc?'image':'non-text',text,imageSrc};
       }).filter(item=>item.direction!=='notice');
       return {ready:Boolean(conversation&&document.querySelector('.w-e-text[contenteditable=true]')&&document.querySelector('.send')),conversation,messages};
     })()`);
@@ -220,9 +222,30 @@ export class RemoteChatBridge {
       conversation: clean(value.conversation),
       messages: (value.messages || []).map(item => {
         const text = clean(item.text);
-        return { ...item, text, type: classifyRemoteMessage(text, item.type) };
+        return { ...item, text, imageSrc: String(item.imageSrc || ''), type: classifyRemoteMessage(text, item.type) };
       })
     };
+  }
+
+  async imageDataUrl(imageSrc, maxBytes = 8 * 1024 * 1024) {
+    const source = String(imageSrc || '').trim();
+    if (!source) throw new Error('Lovense image source is unavailable.');
+    const value = await this.evaluate(`(async()=>{
+      const source=${JSON.stringify(source)};
+      const maxBytes=${Math.max(1, Number(maxBytes) || 8 * 1024 * 1024)};
+      const allowed=/^image\/(jpeg|png|gif|webp|avif)$/i;
+      try {
+        const response=await fetch(source,{credentials:'include'});
+        if(!response.ok) return {ok:false,error:'Lovense did not return the image.'};
+        const blob=await response.blob();
+        if(!allowed.test(blob.type||'')) return {ok:false,error:'Lovense returned an unsupported image format.'};
+        if(!blob.size||blob.size>maxBytes) return {ok:false,error:'Lovense image is too large to save.'};
+        const dataUrl=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(new Error('Lovense image could not be read.'));reader.readAsDataURL(blob);});
+        return {ok:true,dataUrl};
+      } catch (error) { return {ok:false,error:error?.message||'Lovense image could not be saved.'}; }
+    })()`, { awaitPromise: true });
+    if (!value?.ok || typeof value.dataUrl !== 'string') throw new Error(value?.error || 'Lovense image could not be saved.');
+    return value.dataUrl;
   }
 
   async fillDraft(text, expectedConversation) {

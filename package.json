@@ -1,6 +1,6 @@
 {
   "name": "lovense-chatbot",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "private": true,
   "description": "A safety-first local chatbot controller for Lovense devices.",
   "type": "module",
@@ -27,7 +27,7 @@
     "electron-updater": "6.6.2"
   },
   "build": {
-    "buildVersion": "0.2.2",
+    "buildVersion": "0.2.3",
     "appId": "com.mrjohndowe.lovense-remote-reply-assistant",
     "productName": "Lovense Remote Reply Assistant",
     "asar": true,

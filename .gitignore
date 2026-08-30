@@ -6,6 +6,7 @@ coverage/
 .DS_Store
 Thumbs.db
 config.ini
+conversation-media/
 .lh/
 .lh/config.ini.json
 package-lock.json

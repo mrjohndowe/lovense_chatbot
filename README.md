@@ -8,7 +8,7 @@ This project does not use the Lovense developer API, pairing callbacks, Cloudfla
 
 - Detects visible unread-count badges and processes unread conversations one at a time.
 - Distinguishes incoming `.left .friend-msg` entries from outgoing `.right` entries.
-- Ignores images, patterns, toy requests, notices, mobile-only `[vowgameinvitecard]` game invitations, and other non-text entries.
+- Saves visible Lovense conversation pictures locally for later viewing, while continuing to ignore pictures, patterns, toy requests, notices, mobile-only `[vowgameinvitecard]` game invitations, and other non-text entries when deciding whether to generate a reply.
 - Marks all visible history as already seen when monitoring starts or you switch conversations.
 - Queues only genuinely new incoming text for review.
 - Supports explicit opt-in automatic sending with a randomized reaction and reply-length typing delay.
@@ -43,9 +43,9 @@ The resulting x64 installer and portable executable are written under `release`.
 
 GitHub Actions builds the Windows executables on a hosted Windows runner. Run **Build Windows release** manually from the repository’s **Actions** tab to test a build and download its two `.exe` files as a workflow artifact. To publish them as a GitHub Release, push a version tag beginning with `v`; the workflow installs the dependencies, runs the automated tests, builds the installer and portable executable, verifies both exist, then attaches them to the new Release.
 
-The installed **NSIS** version of the Reply Assistant checks the public GitHub Releases feed when it starts. If a newer release is available, it downloads it in the background and verifies it through Electron Builder’s update metadata. You can also choose **Help → Check for updates**. After a download, choose **Restart now** to install immediately, or **Install when I exit** to apply it the next time you close the Assistant normally. Portable `.exe` copies do not self-update; install the NSIS version to receive updates. The release label `v0.2.2` corresponds to the internal updater version and Windows build version `0.2.2`. This recovery release intentionally remains newer than the original `0.2.0` installer, so that installation can receive it through the updater.
+The installed **NSIS** version of the Reply Assistant checks the public GitHub Releases feed when it starts. If a newer release is available, it downloads it in the background and verifies it through Electron Builder’s update metadata. You can also choose **Help → Check for updates**. After a download, choose **Restart now** to install immediately, or **Install when I exit** to apply it the next time you close the Assistant normally. Portable `.exe` copies do not self-update; install the NSIS version to receive updates. The release label `v0.2.3` corresponds to the internal updater version and Windows build version `0.2.3`. This recovery release intentionally remains newer than the original `0.2.0` installer, so that installation can receive it through the updater.
 
-At first launch, the packaged application creates its private settings file at `%APPDATA%\Lovense Remote Reply Assistant\config.ini` from the fully commented example. It keeps the same AES-256-GCM encrypted credential fields and never writes a plaintext Lovense password. The **Settings** page writes to that per-user file, and **Saved conversations** remains in-memory only for the current run.
+At first launch, the packaged application creates its private settings file at `%APPDATA%\Lovense Remote Reply Assistant\config.ini` from the fully commented example. It keeps the same AES-256-GCM encrypted credential fields and never writes a plaintext Lovense password. The **Settings** page writes to that per-user file. Text conversation memory remains in-memory for the current run, while visible chat pictures are saved in `%APPDATA%\Lovense Remote Reply Assistant\conversation-media` for the private gallery on **Saved conversations**.
 
 During development, `npm run desktop` opens the same desktop shell and makes a one-time copy of an existing repository `config.ini` into the per-user application folder, preserving local settings and encrypted fields. It never overwrites that per-user configuration. To use fresh defaults, delete only `%APPDATA%\Lovense Remote Reply Assistant\config.ini` while the app is closed, then launch it again.
 
@@ -65,7 +65,7 @@ Electron main process
 existing Node local service (127.0.0.1 only)
   - encrypted credential handling
   - Lovense Remote startup and chat navigation
-  - reply queue, local settings, in-memory conversation viewer
+  - reply queue, local settings, conversation viewer, private picture library
         |
 Lovense Remote DevTools endpoint (127.0.0.1:9223)
 ```
@@ -88,7 +88,7 @@ if (-not (Test-Path config.ini)) { Copy-Item config.example.ini config.ini }
 
 ```
 
-The launcher creates `config.ini` from the fully commented, grouped example when neither `config.ini` nor a legacy `.env` exists. When the localhost inspection endpoint is unavailable, it starts Lovense Remote as Administrator from its installation directory; approve the UAC prompt. Starting from the installation directory prevents `./resources/app/dist/` path errors. After Lovense opens, manually navigate to Messages and select the intended conversation. The launcher then starts the review dashboard. Open:
+The launcher creates `config.ini` from the fully commented, grouped example when neither `config.ini` nor a legacy `.env` exists. When the localhost inspection endpoint is unavailable, it starts Lovense Remote from its installation directory in the same Windows user context as the Assistant. Starting from the installation directory prevents `./resources/app/dist/` path errors. After Lovense opens, the Assistant attempts local sign-in and Messages navigation, then starts the review dashboard. Open:
 
 `http://127.0.0.1:3000`
 
@@ -104,7 +104,7 @@ Set-Location -LiteralPath 'G:\\.gitClones\\chatbot'
 
 `config.ini` is the primary personal configuration file. Existing `.env` files remain supported only as a fallback when `config.ini` does not exist. Regular operating-system environment variables override file values.
 
-The review dashboard includes dedicated **Settings** and **Saved conversations** pages. Settings is prefilled from the current private `config.ini` and saves selected identity, reply, and desktop-navigation settings back to that file without displaying API keys, access tokens, or a saved Lovense password. Saved conversations displays the assistant's local in-memory conversation history; it is view-only and resets when the server stops.
+The review dashboard includes dedicated **Settings** and **Saved conversations** pages. Settings is prefilled from the current private `config.ini` and saves selected identity, reply, and desktop-navigation settings back to that file without displaying API keys, access tokens, or a saved Lovense password. Saved conversations displays the assistant's local in-memory conversation history plus a private gallery of saved Lovense pictures. The text history resets when the server stops; the picture gallery persists in the local Assistant data folder until you remove those files.
 
 When started through `scripts/start-personal.ps1`, press **Ctrl+Alt+Shift+L** to hide the Lovense Remote window or restore it to the foreground. The app remains running and the Reply Assistant continues monitoring while its window is hidden.
 
@@ -209,7 +209,7 @@ The default persona is concise, natural, dominant, teasing, and flirty. It is re
 - Toy controls start disabled on every server launch, accept only one detected toy during initial setup, enforce Lovense's own range and step, and disable if the accepted toy changes.
 - Random mode controls only the chat partner's toy shown in an accepted Live Control session. It starts off, uses the configured bounded intensity/speed and interval ranges, blocks manual slider changes while active, and returns every visible function to zero when Random mode is stopped, controls are disabled, the toy changes, or the session is lost.
 - Conversation memory stays in process memory and resets when the server stops. OpenAI history sharing is separately disabled by default.
-- Message text exists in process memory and the browser review page but is not written to disk by this project.
+- Message text exists in process memory and the browser review page but is not written to disk by this project. Captured Lovense pictures are the exception: common raster image formats up to 8 MB are retained privately in the local `conversation-media` folder so they can be viewed later on the Saved conversations page.
 - The review queue resets when the Node process stops.
 - Any local process running as your Windows user may be able to connect to a local debugging port. Stop the assistant when it is not needed, and restart Lovense Remote normally if you want the debugging endpoint removed.
 - Lovense application updates may change DOM selectors. The assistant fails closed if it cannot find the expected conversation title, message list, editor, or Send control.

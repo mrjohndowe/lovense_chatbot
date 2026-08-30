@@ -1,6 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ensureLovenseRemote } from '../src/remote-launcher.js';
+import { ensureLovenseRemote, lovenseStartupPowerShellScript } from '../src/remote-launcher.js';
+
+test('starts Lovense Remote without elevating it above the Assistant', () => {
+  const script = lovenseStartupPowerShellScript('C:\\Lovense\\Lovense_Remote.exe', 'C:\\Lovense');
+  assert.match(script, /--remote-debugging-address=127\.0\.0\.1/);
+  assert.match(script, /--remote-debugging-port=9223/);
+  assert.doesNotMatch(script, /-Verb\s+RunAs/i);
+});
 
 test('does not start Lovense Remote when its debug endpoint is already ready', async () => {
   let started = false;

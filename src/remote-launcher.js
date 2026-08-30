@@ -4,9 +4,12 @@ import path from 'node:path';
 
 function wait(milliseconds) { return new Promise(resolve => setTimeout(resolve, milliseconds)); }
 async function debugEndpointReady(debugUrl, fetchImpl) { try { return (await fetchImpl(`${debugUrl}/json/version`, { signal: AbortSignal.timeout(2_000) })).ok; } catch { return false; } }
-function powerShellStart(executable, workingDirectory) {
+export function lovenseStartupPowerShellScript(executable, workingDirectory) {
   const encode = value => Buffer.from(value, 'utf8').toString('base64');
-  const script = `$exe=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${encode(executable)}'));$cwd=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${encode(workingDirectory)}'));Start-Process -FilePath $exe -ArgumentList @('--remote-debugging-address=127.0.0.1','--remote-debugging-port=9223') -WorkingDirectory $cwd -Verb RunAs`;
+  return `$exe=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${encode(executable)}'));$cwd=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${encode(workingDirectory)}'));Start-Process -FilePath $exe -ArgumentList @('--remote-debugging-address=127.0.0.1','--remote-debugging-port=9223') -WorkingDirectory $cwd`;
+}
+function powerShellStart(executable, workingDirectory) {
+  const script = lovenseStartupPowerShellScript(executable, workingDirectory);
   return new Promise((resolve, reject) => {
     const child = spawn('powershell.exe', ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command', script], { windowsHide: true, stdio: 'ignore' });
     child.once('error', error => reject(new Error(`Could not request Lovense Remote startup: ${error.message}`)));

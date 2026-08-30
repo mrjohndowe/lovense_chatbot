@@ -40,8 +40,25 @@
 
     <section class="settings card"><p class="eyebrow">CONFIGURATION</p><h2>Settings are on their own page</h2><p class="studio-description">Edit the current values in your private config.ini without exposing keys or access tokens.</p><a class="page-link" href="/settings.html">Open Settings</a></section>
 
-    <section class="reply-studio card" aria-labelledby="reply-studio-title">
-      <div class="section-heading"><div><p class="eyebrow">REPLY STUDIO</p><h2 id="reply-studio-title">Generate from a manual message</h2><p class="studio-description">This preview does not use captured chat history, queue a reply, or send anything to Lovense.</p></div></div>
+    <section class="reply-studio-launcher card" aria-labelledby="reply-studio-launcher-title">
+      <div><p class="eyebrow">REPLY STUDIO</p><h2 id="reply-studio-launcher-title">Create a manual reply preview</h2><p class="studio-description">Draft a one-off reply without using captured chat history, queuing a reply, or sending anything to Lovense.</p></div>
+      <button id="studio-open" type="button" aria-haspopup="dialog" aria-controls="reply-studio-modal">Open Reply Studio</button>
+    </section>
+
+    <section class="queue-section">
+      <div class="section-heading"><div><p class="eyebrow">INBOX</p><h2>Replies waiting for review</h2></div><button id="refresh" class="secondary" type="button">Refresh</button></div>
+      <div id="error" class="error hidden"></div>
+      <div id="queue" class="queue"><div class="empty">No new incoming messages are waiting.</div></div>
+    </section>
+
+    <section class="notice">
+      <strong id="send-notice-title">Automatic sending is off.</strong>
+      <p>When automatic sending is enabled, new replies wait for a randomized reaction, type into Lovense in the background, recheck the selected conversation, and press Enter immediately after the final character. Lovense does not need to be the foreground window. The assistant can switch to unread contacts and verifies the selected username again before sending. Pause or disable automatic sending at any time.</p>
+    </section>
+  </main>
+  <dialog id="reply-studio-modal" class="studio-modal" aria-labelledby="reply-studio-title">
+    <section class="reply-studio card">
+      <div class="section-heading"><div><p class="eyebrow">REPLY STUDIO</p><h2 id="reply-studio-title">Generate from a manual message</h2><p class="studio-description">This preview does not use captured chat history, queue a reply, or send anything to Lovense.</p></div><button id="studio-close" class="secondary" type="button">Close</button></div>
       <div class="studio-grid">
         <label class="studio-wide">Message to reply to<textarea id="studio-message" maxlength="4000" placeholder="Paste or type the message you want to answer…"></textarea></label>
         <label>Minimum words<input id="studio-min-words" type="number" min="1" max="250" value="8" inputmode="numeric"></label>
@@ -56,18 +73,7 @@
       <label class="studio-output-label" for="studio-output">Generated reply preview</label>
       <textarea id="studio-output" readonly placeholder="Your generated reply will appear here."></textarea>
     </section>
-
-    <section class="queue-section">
-      <div class="section-heading"><div><p class="eyebrow">INBOX</p><h2>Replies waiting for review</h2></div><button id="refresh" class="secondary" type="button">Refresh</button></div>
-      <div id="error" class="error hidden"></div>
-      <div id="queue" class="queue"><div class="empty">No new incoming messages are waiting.</div></div>
-    </section>
-
-    <section class="notice">
-      <strong id="send-notice-title">Automatic sending is off.</strong>
-      <p>When automatic sending is enabled, new replies wait for a randomized reaction, type into Lovense in the background, recheck the selected conversation, and press Enter immediately after the final character. Lovense does not need to be the foreground window. The assistant can switch to unread contacts and verifies the selected username again before sending. Pause or disable automatic sending at any time.</p>
-    </section>
-  </main>
+  </dialog>
   <script src="/remote.js"></script>
 </body>
 </html>

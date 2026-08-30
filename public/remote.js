@@ -1,6 +1,8 @@
 const state = { token: sessionStorage.getItem('remote-reply-token') || '', data: null };
 const queue = document.querySelector('#queue');
 const errorBox = document.querySelector('#error');
+const studioModal = document.querySelector('#reply-studio-modal');
+const studioMessage = document.querySelector('#studio-message');
 
 function headers() {
   return { 'content-type': 'application/json', ...(state.token ? { authorization: `Bearer ${state.token}` } : {}) };
@@ -203,6 +205,14 @@ queue.addEventListener('click', async event => {
 document.querySelector('#start').addEventListener('click', () => monitor('start'));
 document.querySelector('#stop').addEventListener('click', () => monitor('stop'));
 document.querySelector('#refresh').addEventListener('click', refresh);
+document.querySelector('#studio-open').addEventListener('click', () => {
+  studioModal.showModal();
+  window.setTimeout(() => studioMessage.focus(), 0);
+});
+document.querySelector('#studio-close').addEventListener('click', () => studioModal.close());
+studioModal.addEventListener('click', event => {
+  if (event.target === studioModal) studioModal.close();
+});
 document.querySelector('#studio-generate').addEventListener('click', async () => {
   const button = document.querySelector('#studio-generate');
   const status = document.querySelector('#studio-status');

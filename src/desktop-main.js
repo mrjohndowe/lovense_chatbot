@@ -48,22 +48,27 @@ function createWindow() {
   mainWindow.loadURL(dashboardUrl);
 }
 
-function toggleLovenseWindow() {
+function toggleLovenseAndAssistantWindows() {
   return new Promise((resolve, reject) => {
     const child = spawn('powershell.exe', [
       '-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
-      '-File', lovenseToggleScriptPath, '-Once'
+      '-File', lovenseToggleScriptPath, '-Paired', '-AssistantProcessId', String(process.pid)
     ], { windowsHide: true, stdio: 'ignore' });
     child.once('error', error => reject(error));
-    child.once('close', code => code === 0 ? resolve() : reject(new Error('Lovense window toggle did not complete.')));
+    child.once('close', code => code === 0 ? resolve() : reject(new Error('Lovense and Assistant window toggle did not complete.')));
   });
 }
 
 function togglePairedWindows() {
-  const hideAssistant = Boolean(mainWindow && !mainWindow.isDestroyed() && mainWindow.isVisible());
-  if (hideAssistant) mainWindow.hide();
-  else createWindow();
-  toggleLovenseWindow().catch(error => console.warn(`Could not toggle the Lovense window: ${error.message}`));
+  void toggleLovenseAndAssistantWindows().catch(error => {
+    console.warn(`Could not toggle the Lovense and Assistant windows: ${error.message}`);
+    void dialog.showMessageBox(mainWindow, {
+      type: 'warning',
+      title: 'Lovense Remote could not be hidden',
+      message: 'The Assistant was left visible so the two windows stay together.',
+      detail: 'Lovense Remote may be running as Administrator. Close it, then let the Assistant launch Lovense Remote normally before trying the paired hide again.'
+    });
+  });
 }
 
 async function openLovenseDevtools({ reportError = false } = {}) {

@@ -1,4 +1,4 @@
-param([switch]$Once, [switch]$Restore)
+param([switch]$Once, [switch]$Paired, [switch]$Restore, [int]$AssistantProcessId = 0)
 
 $ErrorActionPreference = 'Stop'
 
@@ -28,7 +28,7 @@ public static class LovenseWindowHotkey {
       if (GetWindow(hWnd, 4) != IntPtr.Zero) return true; // owned windows are not the application window
       uint processId;
       GetWindowThreadProcessId(hWnd, out processId);
-      if (Array.IndexOf(processIds, (int)processId) < 0) return true;
+      if (processIds.Length > 0 && Array.IndexOf(processIds, (int)processId) < 0) return true;
       var title = new StringBuilder(512);
       GetWindowText(hWnd, title, title.Capacity);
       if (!string.IsNullOrEmpty(expectedTitle) && !string.Equals(title.ToString(), expectedTitle, StringComparison.Ordinal)) return true;
@@ -45,7 +45,7 @@ $hotkeyId = 8201
 $modifiers = 0x0001 -bor 0x0002 -bor 0x0004 # Alt + Ctrl + Shift
 $virtualKeyL = 0x4C
 $hide = 0
-$restore = 9
+$restoreCommand = 9
 $lastWindow = [IntPtr]::Zero
 
 function Get-LovenseWindow {
@@ -56,9 +56,13 @@ function Get-LovenseWindow {
 }
 
 function Get-AssistantWindow {
-    $processIds = @(Get-Process -Name 'Lovense Remote Reply Assistant' -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Id)
-    if (-not $processIds.Count) { return [IntPtr]::Zero }
-    return [LovenseWindowHotkey]::FindTopLevelWindow([int[]]$processIds, 'Lovense Remote Reply Assistant')
+    $processIds = @()
+    if ($AssistantProcessId -gt 0) { $processIds += $AssistantProcessId }
+    $processIds += @(Get-Process -Name 'Lovense Remote Reply Assistant' -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Id)
+    $processIds = @($processIds | Select-Object -Unique)
+    $window = [LovenseWindowHotkey]::FindTopLevelWindow([int[]]$processIds, 'Lovense Remote Reply Assistant')
+    if ($window -ne [IntPtr]::Zero) { return $window }
+    return [LovenseWindowHotkey]::FindTopLevelWindow([int[]]@(), 'Lovense Remote Reply Assistant')
 }
 
 function Toggle-LovenseWindow {
@@ -67,7 +71,7 @@ function Toggle-LovenseWindow {
     if ([LovenseWindowHotkey]::IsWindowVisible($window)) {
         [LovenseWindowHotkey]::ShowWindow($window, $hide) | Out-Null
     } else {
-        [LovenseWindowHotkey]::ShowWindow($window, $restore) | Out-Null
+        [LovenseWindowHotkey]::ShowWindow($window, $restoreCommand) | Out-Null
         [LovenseWindowHotkey]::SetForegroundWindow($window) | Out-Null
     }
 }
@@ -75,27 +79,39 @@ function Toggle-LovenseWindow {
 function Toggle-PairedWindows {
     $lovenseWindow = Get-LovenseWindow
     $assistantWindow = Get-AssistantWindow
-    $hidePairedWindows = $lovenseWindow -ne [IntPtr]::Zero -and [LovenseWindowHotkey]::IsWindowVisible($lovenseWindow)
+    if ($lovenseWindow -eq [IntPtr]::Zero -or $assistantWindow -eq [IntPtr]::Zero) { return $false }
+    $hidePairedWindows = [LovenseWindowHotkey]::IsWindowVisible($lovenseWindow) -or [LovenseWindowHotkey]::IsWindowVisible($assistantWindow)
     if ($hidePairedWindows) {
         [LovenseWindowHotkey]::ShowWindow($lovenseWindow, $hide) | Out-Null
-        if ($assistantWindow -ne [IntPtr]::Zero) { [LovenseWindowHotkey]::ShowWindow($assistantWindow, $hide) | Out-Null }
-    } else {
-        if ($lovenseWindow -ne [IntPtr]::Zero) { [LovenseWindowHotkey]::ShowWindow($lovenseWindow, $restore) | Out-Null }
-        if ($assistantWindow -ne [IntPtr]::Zero) {
-            [LovenseWindowHotkey]::ShowWindow($assistantWindow, $restore) | Out-Null
-            [LovenseWindowHotkey]::SetForegroundWindow($assistantWindow) | Out-Null
-        } else {
-            [LovenseWindowHotkey]::SetForegroundWindow($lovenseWindow) | Out-Null
+        Start-Sleep -Milliseconds 100
+        if ([LovenseWindowHotkey]::IsWindowVisible($lovenseWindow)) { return $false }
+        [LovenseWindowHotkey]::ShowWindow($assistantWindow, $hide) | Out-Null
+        Start-Sleep -Milliseconds 100
+        if ([LovenseWindowHotkey]::IsWindowVisible($assistantWindow)) {
+            [LovenseWindowHotkey]::ShowWindow($lovenseWindow, $restoreCommand) | Out-Null
+            return $false
         }
+    } else {
+        [LovenseWindowHotkey]::ShowWindow($lovenseWindow, $restoreCommand) | Out-Null
+        Start-Sleep -Milliseconds 100
+        if (-not [LovenseWindowHotkey]::IsWindowVisible($lovenseWindow)) { return $false }
+        [LovenseWindowHotkey]::ShowWindow($assistantWindow, $restoreCommand) | Out-Null
+        Start-Sleep -Milliseconds 100
+        if (-not [LovenseWindowHotkey]::IsWindowVisible($assistantWindow)) {
+            [LovenseWindowHotkey]::ShowWindow($lovenseWindow, $hide) | Out-Null
+            return $false
+        }
+        [LovenseWindowHotkey]::SetForegroundWindow($assistantWindow) | Out-Null
     }
+    return $true
 }
 
 function Restore-PairedWindows {
     $lovenseWindow = Get-LovenseWindow
     $assistantWindow = Get-AssistantWindow
-    if ($lovenseWindow -ne [IntPtr]::Zero) { [LovenseWindowHotkey]::ShowWindow($lovenseWindow, $restore) | Out-Null }
+    if ($lovenseWindow -ne [IntPtr]::Zero) { [LovenseWindowHotkey]::ShowWindow($lovenseWindow, $restoreCommand) | Out-Null }
     if ($assistantWindow -ne [IntPtr]::Zero) {
-        [LovenseWindowHotkey]::ShowWindow($assistantWindow, $restore) | Out-Null
+        [LovenseWindowHotkey]::ShowWindow($assistantWindow, $restoreCommand) | Out-Null
         [LovenseWindowHotkey]::SetForegroundWindow($assistantWindow) | Out-Null
     } elseif ($lovenseWindow -ne [IntPtr]::Zero) {
         [LovenseWindowHotkey]::SetForegroundWindow($lovenseWindow) | Out-Null
@@ -110,6 +126,11 @@ if ($Restore) {
 if ($Once) {
     Toggle-LovenseWindow
     exit 0
+}
+
+if ($Paired) {
+    if (Toggle-PairedWindows) { exit 0 }
+    exit 1
 }
 
 $createdNew = $false

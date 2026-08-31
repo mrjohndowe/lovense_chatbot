@@ -25,3 +25,8 @@ test('treats unchanged placeholders as blank', () => {
   const values = parseIni('CHAT_FIRST_NAME="<your first name>" ; replace this value');
   assert.equal(values.CHAT_FIRST_NAME, '');
 });
+
+test('accepts an inline semicolon comment without preceding whitespace', () => {
+  const values = parseIni('CHAT_AGE=26; Current age as a whole number');
+  assert.equal(values.CHAT_AGE, '26');
+});

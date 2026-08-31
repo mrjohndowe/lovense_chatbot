@@ -15,7 +15,7 @@ export function parseIni(text) {
     for (let position = 0; position < value.length; position += 1) {
       const character = value[position];
       if ((character === '"' || character === "'") && (!quote || quote === character)) quote = quote ? '' : character;
-      if (character === ';' && !quote && (position === 0 || /\s/.test(value[position - 1]))) {
+      if (character === ';' && !quote) {
         value = value.slice(0, position).trimEnd();
         break;
       }

@@ -37,7 +37,8 @@ function reviewCard(item) {
   title.textContent = item.conversation;
   const badge = document.createElement('span');
   badge.className = 'badge';
-  badge.textContent = item.status === 'drafted' ? 'Draft placed' : item.scheduledFor ? `Auto ${new Date(item.scheduledFor).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' })}` : 'Waiting';
+  badge.textContent = item.status === 'blocked' ? 'Held for readability review' : item.status === 'drafted' ? 'Draft placed' : item.scheduledFor ? `Auto ${new Date(item.scheduledFor).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' })}` : 'Waiting';
+  if (item.error) badge.title = item.error;
   top.append(title, badge);
   const message = document.createElement('div');
   message.className = 'message';
@@ -92,7 +93,7 @@ function render(data) {
   document.querySelector('#start').disabled = data.watching || waitingForLovense;
   document.querySelector('#stop').disabled = !data.watching && !waitingForLovense;
   showError(data.lastError || '');
-  const active = data.reviews.filter(item => item.status === 'waiting' || item.status === 'drafted');
+  const active = data.reviews.filter(item => item.status === 'waiting' || item.status === 'drafted' || item.status === 'blocked');
   queue.replaceChildren(...(active.length ? active.map(reviewCard) : [Object.assign(document.createElement('div'), { className: 'empty', textContent: 'No new incoming messages are waiting.' })]));
 }
 

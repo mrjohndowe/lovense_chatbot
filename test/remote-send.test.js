@@ -67,9 +67,53 @@ test('automatic send rechecks the conversation and clicks the Lovense Send contr
   assert.ok(keyRequests.every(request => request.params.key === 'Enter' && request.params.windowsVirtualKeyCode === 13));
   const evaluated = requests.filter(request => request.method === 'Runtime.evaluate').map(request => request.params.expression).join(' ');
   assert.match(evaluated, /send\.click\(\)/);
+  assert.match(evaluated, /typed!==expectedReply/);
+  assert.match(evaluated, /does not match the verified reply/);
   assert.equal(requests.some(request => request.method === 'Input.dispatchMouseEvent'), false);
   assert.equal(requests.some(request => request.method === 'Page.bringToFront' || request.method === 'Target.activateTarget'), false);
 });
+
+test('does not click Send when Lovense changed the verified draft while typing', async () => {
+  const requests = [];
+  class FakeWebSocket {
+    static OPEN = 1;
+    constructor() {
+      this.readyState = 0;
+      this.listeners = new Map();
+      queueMicrotask(() => { this.readyState = FakeWebSocket.OPEN; this.emit('open', {}); });
+    }
+    addEventListener(type, listener) {
+      const listeners = this.listeners.get(type) || [];
+      listeners.push(listener);
+      this.listeners.set(type, listeners);
+    }
+    emit(type, event) { for (const listener of this.listeners.get(type) || []) listener(event); }
+    send(raw) {
+      const request = JSON.parse(raw);
+      requests.push(request);
+      const expression = request.params.expression || '';
+      const value = expression.includes('typed!==expectedReply')
+        ? { ok: false, error: 'The Lovense draft does not match the verified reply, so it was not sent.' }
+        : { ok: true };
+      queueMicrotask(() => this.emit('message', { data: JSON.stringify({ id: request.id, result: { result: { value } } }) }));
+    }
+    close() {
+      this.readyState = 3;
+      this.emit('close', {});
+    }
+  }
+  const fetchImpl = async () => ({
+    ok: true,
+    json: async () => [{ type: 'page', title: 'Lovense Remote', webSocketDebuggerUrl: 'ws://127.0.0.1/test' }]
+  });
+  const bridge = new RemoteChatBridge({ fetchImpl, WebSocketImpl: FakeWebSocket });
+  await assert.rejects(
+    () => bridge.typeAndSend('Hi', 'Selected conversation', 0),
+    /does not match the verified reply/
+  );
+  assert.equal(requests.some(request => String(request.params.expression || '').includes('send.click()')), false);
+});
+
 test('targets the separate Live Control renderer and validates a bounded slider command', async () => {
   let connectedUrl = '';
   let expression = '';

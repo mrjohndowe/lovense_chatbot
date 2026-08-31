@@ -8,6 +8,7 @@ import { loadPersonalConfig } from './ini-config.js';
 import { RemoteChatBridge, fingerprint } from './remote-chat.js';
 import { createFollowUpTracker } from './follow-up.js';
 import { createReplyDeduper, generateReply } from './replies.js';
+import { inspectReplyQuality, requireReadableReply } from './reply-quality.js';
 import { unrepliedIncomingText } from './reply-catchup.js';
 import { chooseRandomToyControl, randomDelayMs } from './toy-random.js';
 import { readDashboardSettings, saveDashboardSettings } from './config-editor.js';
@@ -196,6 +197,7 @@ function scheduleAuto(item) {
     item.scheduledFor = null;
     if (!autoSend || !watching || item.status !== 'waiting') return;
     try {
+      item.reply = requireReadableReply(item.reply);
       await bridge.typeAndSend(
         item.reply,
         item.conversation,
@@ -232,20 +234,22 @@ async function processFreshMessages(snapshot, fresh, { source = 'incoming' } = {
   const combinedMessage = fresh.map(item => item.text).join('\n');
   const history = conversationMemories.get(snapshot.conversation) || [];
   const generatedReply = await generateReply(config, combinedMessage, globalThis.fetch, { history });
-  const reply = dedupeReply(snapshot.conversation, generatedReply);
+  const quality = inspectReplyQuality(generatedReply);
+  const reply = quality.ok ? dedupeReply(snapshot.conversation, quality.reply) : String(generatedReply || '').trim();
   rememberConversationTurn(snapshot.conversation, 'user', combinedMessage);
-  rememberConversationTurn(snapshot.conversation, 'assistant', reply);
+  if (quality.ok) rememberConversationTurn(snapshot.conversation, 'assistant', reply);
   const review = {
     id: String(nextReviewId++),
     conversation: snapshot.conversation,
     message: combinedMessage,
     reply,
-    status: 'waiting',
+    status: quality.ok ? 'waiting' : 'blocked',
     source,
-    createdAt: new Date().toISOString()
+    createdAt: new Date().toISOString(),
+    ...(quality.ok ? {} : { error: `Reply was held for review: ${quality.error}` })
   };
   reviews.push(review);
-  scheduleAuto(review);
+  if (quality.ok) scheduleAuto(review);
   while (reviews.length > 20) reviews.shift();
 }
 
@@ -551,7 +555,7 @@ async function api(request, response, pathname) {
       const body = await readJson(request);
       const item = reviews.find(review => review.id === String(body.id));
       if (!item) return json(response, 404, { error: 'Review item was not found.' });
-      item.reply = String(body.reply || '').trim().slice(0, config.maxReplyChars);
+      item.reply = requireReadableReply(String(body.reply || '').trim().slice(0, config.maxReplyChars));
       clearAutoTimer(item.id);
       await bridge.fillDraft(item.reply, item.conversation);
       item.status = 'drafted';

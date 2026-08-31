@@ -11,7 +11,7 @@ This project does not use the Lovense developer API, pairing callbacks, Cloudfla
 - Saves visible Lovense conversation pictures locally for later viewing, while continuing to ignore pictures, patterns, toy requests, notices, mobile-only `[vowgameinvitecard]` game invitations, and other non-text entries when deciding whether to generate a reply.
 - Marks all visible history as already seen when monitoring starts or you switch conversations.
 - Queues only genuinely new incoming text for review.
-- Supports explicit opt-in automatic sending with a randomized reaction and reply-length typing delay.
+- Supports explicit opt-in automatic sending with a randomized reaction and reply-length typing delay, a readability check, and a final exact draft verification before Lovense Send is clicked.
 - Optionally sends one delayed follow-up when the other person still has the last visible text; it never double-messages when the bot/system text is last.
 - Lets you edit a proposed reply, place it in Lovense as an unsent draft, dismiss it, or explicitly send it.
 - Rechecks the conversation title immediately before drafting and sending.
@@ -43,7 +43,7 @@ The resulting x64 installer and portable executable are written under `release`.
 
 GitHub Actions builds the Windows executables on a hosted Windows runner. Run **Build Windows release** manually from the repository’s **Actions** tab to test a build and download its two `.exe` files as a workflow artifact. To publish them as a GitHub Release, push a version tag beginning with `v`; the workflow installs the dependencies, runs the automated tests, builds the installer and portable executable, verifies both exist, then attaches them to the new Release.
 
-The installed **NSIS** version of the Reply Assistant checks the public GitHub Releases feed when it starts. If a newer release is available, it downloads it in the background and verifies it through Electron Builder’s update metadata. You can also choose **Help → Check for updates**. After a download, choose **Restart now** to install immediately, or **Install when I exit** to apply it the next time you close the Assistant normally. Portable `.exe` copies do not self-update; install the NSIS version to receive updates. The release label `v0.2.4` corresponds to the internal updater version and Windows build version `0.2.4`. This recovery release intentionally remains newer than the original `0.2.0` installer, so that installation can receive it through the updater.
+The installed **NSIS** version of the Reply Assistant checks the public GitHub Releases feed when it starts. If a newer release is available, it downloads it in the background and verifies it through Electron Builder’s update metadata. You can also choose **Help → Check for updates**. After a download, choose **Restart now** to install immediately, or **Install when I exit** to apply it the next time you close the Assistant normally. Portable `.exe` copies do not self-update; install the NSIS version to receive updates. The release label `v0.2.5` corresponds to the internal updater version and Windows build version `0.2.5`. This recovery release intentionally remains newer than the original `0.2.0` installer, so that installation can receive it through the updater.
 
 At first launch, the packaged application creates its private settings file at `%APPDATA%\Lovense Remote Reply Assistant\config.ini` from the fully commented example. It keeps the same AES-256-GCM encrypted credential fields and never writes a plaintext Lovense password. The **Settings** page writes to that per-user file. Text conversation memory remains in-memory for the current run, while visible chat pictures are saved in `%APPDATA%\Lovense Remote Reply Assistant\conversation-media` for the private gallery on **Saved conversations**.
 
@@ -133,7 +133,7 @@ Automatic sending is off by default. Enable it from the localhost dashboard afte
 3. Waits a randomized reaction delay.
 4. Adds simulated typing time based on reply length.
 5. Rechecks that the same conversation is still selected.
-6. Fills the Lovense editor and clicks Send.
+6. Checks the generated reply for garbled text, fills the Lovense editor, verifies the completed draft matches exactly, and only then clicks Send. A failed check leaves the message unsent for review.
 
 Configure the timing in the private `config.ini`:
 

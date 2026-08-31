@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { requireReadableReply } from './reply-quality.js';
 
 const DEFAULT_DEBUG_URL = 'http://127.0.0.1:9223';
 
@@ -322,8 +323,7 @@ export class RemoteChatBridge {
     if (!verified?.ok) throw new Error(verified?.error || 'Lovense did not confirm that the reply was sent.');
   }
   async typeAndSend(text, expectedConversation, delayMsPerCharacter = 45, shouldContinue = () => true) {
-    const reply = clean(text);
-    if (!reply) throw new Error('Reply cannot be empty.');
+    const reply = requireReadableReply(clean(text));
     const expected = clean(expectedConversation);
     const prepared = await this.evaluate(`(()=>{
       const expected=${JSON.stringify(expected)};
@@ -347,10 +347,13 @@ export class RemoteChatBridge {
     if (!shouldContinue()) throw new Error('Automatic sending was cancelled before Enter was pressed.');
     const ready = await this.evaluate(`(()=>{
       const expected=${JSON.stringify(expected)};
+      const expectedReply=${JSON.stringify(reply)};
       const title=String(document.querySelector('header .header-title span.header-title')?.innerText||'').replace(/\\s+/g,' ').trim();
       const editor=document.querySelector('.w-e-text[contenteditable=true]');
       if(title!==expected)return {ok:false,error:'The selected Lovense conversation changed.'};
       if(!editor||!String(editor.innerText||'').trim())return {ok:false,error:'The Lovense draft is empty or unavailable.'};
+      const typed=String(editor.innerText||'').replace(/\\s+/g,' ').trim();
+      if(typed!==expectedReply)return {ok:false,error:'The Lovense draft does not match the verified reply, so it was not sent.'};
       editor.focus();
       return {ok:true};
     })()`);

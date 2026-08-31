@@ -1,5 +1,6 @@
 import { app, BrowserWindow, dialog, globalShortcut, Menu, shell } from 'electron';
 import { spawn } from 'node:child_process';
+import { appendFile, mkdir } from 'node:fs/promises';
 import electronUpdater from 'electron-updater';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -17,6 +18,39 @@ let lovenseDebugUrl;
 const { autoUpdater } = electronUpdater;
 
 app.setName(appName);
+
+async function reportStartupFailure(error) {
+  const message = error?.stack || error?.message || String(error);
+  let logPath = '';
+  try {
+    const userDataPath = app.getPath('userData');
+    await mkdir(userDataPath, { recursive: true });
+    logPath = path.join(userDataPath, 'startup-error.log');
+    const entry = [
+      `[${new Date().toISOString()}] ${appName} ${app.getVersion()}`,
+      `Windows ${process.getSystemVersion()} (${process.arch})`,
+      message,
+      ''
+    ].join('\n');
+    await appendFile(logPath, entry, 'utf8');
+  } catch (logError) {
+    console.error(`Could not write the startup error log: ${logError.message}`);
+  }
+
+  console.error(`${appName} could not start: ${message}`);
+  dialog.showErrorBox(
+    `${appName} could not start`,
+    [
+      error?.message || String(error),
+      '',
+      logPath
+        ? `A diagnostic log was saved at:\n${logPath}`
+        : 'Windows could not save a diagnostic log.',
+      '',
+      'Please take a screenshot of this message when asking for help.'
+    ].join('\n')
+  );
+}
 
 function createWindow() {
   if (mainWindow && !mainWindow.isDestroyed()) {
@@ -167,8 +201,8 @@ if (!gotLock) {
       console.warn('Ctrl+Alt+Shift+L is already in use. Use File > Hide or restore Lovense and Assistant instead.');
     }
     if (result.created) console.log(`Desktop settings ${result.migrated ? 'migrated' : 'created'} at ${result.configPath}`);
-  }).catch(error => {
-    console.error(`${appName} could not start: ${error.stack || error.message}`);
+  }).catch(async error => {
+    await reportStartupFailure(error);
     app.quit();
   });
   app.on('will-quit', () => globalShortcut.unregister('Control+Alt+Shift+L'));

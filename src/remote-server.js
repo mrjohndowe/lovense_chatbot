@@ -243,10 +243,10 @@ async function processFreshMessages(snapshot, fresh, { source = 'incoming' } = {
     conversation: snapshot.conversation,
     message: combinedMessage,
     reply,
-    status: quality.ok ? 'waiting' : 'blocked',
+    status: quality.ok ? 'waiting' : 'skipped',
     source,
     createdAt: new Date().toISOString(),
-    ...(quality.ok ? {} : { error: `Reply was held for review: ${quality.error}` })
+    ...(quality.ok ? {} : { error: `Reply was skipped because it failed the readability check: ${quality.error}` })
   };
   reviews.push(review);
   if (quality.ok) scheduleAuto(review);
@@ -521,6 +521,7 @@ async function api(request, response, pathname) {
     }
     if (request.method === 'POST' && pathname === '/api/auto-send') {
       const body = await readJson(request);
+      const enabling = body.enabled === true && !autoSend;
       autoSend = body.enabled === true;
       if (!autoSend) {
         for (const timeout of autoTimers.values()) clearTimeout(timeout);
@@ -528,6 +529,16 @@ async function api(request, response, pathname) {
         for (const item of reviews) item.scheduledFor = null;
       }
       if (autoSend && watching) {
+        if (enabling) {
+          for (const timeout of autoTimers.values()) clearTimeout(timeout);
+          autoTimers.clear();
+          for (const item of reviews) {
+            if (item.status === 'waiting' || item.status === 'drafted' || item.status === 'blocked') {
+              item.status = 'dismissed';
+              item.scheduledFor = null;
+            }
+          }
+        }
         catchUpRequested = true;
         await scan({ catchUp: true });
       }
